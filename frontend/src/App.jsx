@@ -1,16 +1,12 @@
-import { useEffect, useState } from "react";
+import React from "react";
+import SimulationForm from "./components/SimulationForm";
+import "./index.css";
 
 function App() {
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    fetch("/api/health")
-      .then(res => res.json())
-      .then(setData);
-  }, []);
   return (
-    <div>
-      <h1>Site financier</h1>
-      <p>Backend status: {data ? data.status : "..."}</p>
+    <div className="app-container">
+      <h1>Application de Simulation Financière</h1>
+      <SimulationForm />
     </div>
   );
 }

@@ -56,15 +56,11 @@ Ce projet contient un **backend Flask** et un **frontend React (Vite)** pour un 
 git clone https://github.com/tonusername/finance-site.git
 cd finance-site
 
-# Backend
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+---
 
-# Frontend
-cd ../frontend
-npm install
-npm run dev
+## Pour travailler sur la bransh secondaire du dev
+git fetch
+git checkout dev-collab
+
 
 

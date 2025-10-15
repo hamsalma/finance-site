@@ -153,7 +153,7 @@ export default function SimulationForm() {
       <p><strong>Montant initial :</strong> {result.montant_initial} €</p>
       <p><strong>Montant total investi :</strong> {totalInvesti.toFixed(2)} €</p>
       <p><strong>Durée :</strong> {result.duree} années</p>
-      <p><strong>Frais de gestion :</strong> {(result.frais_gestion * 100).toFixed(2)}%</p>
+      <p><strong>Frais de gestion :</strong> {(result.frais_gestion).toFixed(2)}%</p>
       <p><strong>Type de bien :</strong> {result.actif}</p>
       <p><strong>Portefeuille final estimé :</strong> {result.portefeuille_final_estime} €</p>
     </div>

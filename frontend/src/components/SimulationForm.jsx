@@ -149,7 +149,7 @@ export default function SimulationForm() {
           </label>
 
           <label>
-            Année de fin (optionnelle) :
+            Année de fin (Par défaut "2025") :
             <input
               type="number"
               name="date_fin"
@@ -157,7 +157,7 @@ export default function SimulationForm() {
               onChange={handleChange}
               min="1950"
               max={new Date().getFullYear()}
-              placeholder={`Si vide → ${new Date().getFullYear()}`}
+              placeholder="Ex : 2025"
             />
           </label>
 

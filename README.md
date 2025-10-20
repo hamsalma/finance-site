@@ -64,6 +64,10 @@ cd finance-site
 Quand le développement sur la branche parallèle (ex : `dev-collab`) est terminé et validé, voici la procédure pour fusionner les changements dans la branche principale :
 
 ```bash
+#Se placer dans dev-collab 
+git fetch
+git checkout dev-collab
+
 # Se placer sur la branche principale
 git checkout main
 

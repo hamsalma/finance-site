@@ -15,7 +15,7 @@ export default function SimulationForm() {
     montant_initial: "",
     contribution: "",
     frequence: "mensuelle",
-    actif: "actions",
+    actif: "",
     date_debut: "",
     date_fin: "",
   });
@@ -53,7 +53,7 @@ export default function SimulationForm() {
       contribution: parseFloat(formData.contribution),
       frequence: formData.frequence,
       duree: duree,
-      actif: formData.actif,
+      actif: formData.actif || "defaut",
     };
 
     try {
@@ -149,7 +149,7 @@ export default function SimulationForm() {
           </label>
 
           <label>
-            Année de fin (Par défaut "2025") :
+            Année de fin (Par défaut "2025) :
             <input
               type="number"
               name="date_fin"
@@ -168,6 +168,7 @@ export default function SimulationForm() {
               value={formData.actif}
               onChange={handleChange}
             >
+               <option value="">— Sélectionnez —</option>
               <option value="actions">Actions</option>
               <option value="obligations">Obligations</option>
               <option value="etf">ETF</option>
@@ -184,21 +185,15 @@ export default function SimulationForm() {
           <div className="result-section">
             <h2>Résultats de la simulation</h2>
 
-            <div className="cards-container">
-              <div className="result-card">
-                <h3>Montant total investi</h3>
-                <p>
-                  {(
-                    result?.inputs?.montant_initial +
-                    result?.resultats?.total_contribution
-                  ).toFixed(2)}{" "}
-                  €
-                </p>
+              <div className="cards-container">
+                <div className="result-card">
+                <h3>Montant total investi sur {result?.inputs?.duree ?? 0} années</h3>
+                <p>{result?.resultats?.montant_total_investi?.toFixed(2)} €</p>
               </div>
 
               <div className="result-card">
-                <h3>Durée</h3>
-                <p>{result?.inputs?.duree ?? 0} années</p>
+                <h3>Valeur nette d’investissement</h3>
+                <p>{result?.resultats?.portefeuille_final_estime?.toFixed(2)} €</p>
               </div>
 
               <div className="result-card">
@@ -211,7 +206,7 @@ export default function SimulationForm() {
 
               <div className="result-card">
                 <h3>Ratio Sharpe</h3>
-                <p>{result?.resultats?.ratio_sharpe ?? 0}</p>
+                <p>{(result?.resultats?.ratio_sharpe ?? 0).toFixed(2)}</p>
                 <small>{result?.interpretations?.ratio_sharpe}</small>
               </div>
 

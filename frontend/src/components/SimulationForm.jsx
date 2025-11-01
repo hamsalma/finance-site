@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -12,12 +12,14 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const API_URL = "http://127.0.0.1:5000";
 
 export default function SimulationForm() {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [formData, setFormData] = useState({
     montant_initial: "",
     contribution: "",
@@ -30,6 +32,22 @@ export default function SimulationForm() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Pré-remplissage si retour depuis /compare
+  useEffect(() => {
+    if (location.state?.portefeuille) {
+      const p = location.state.portefeuille.inputs || {};
+      setFormData({
+        montant_initial: p.montant_initial ?? "",
+        contribution: p.contribution ?? "",
+        frequence: p.frequence ?? "mensuelle",
+        actif: p.actif ?? "",
+        date_debut: p.date_debut ?? "",
+        date_fin: p.date_fin ?? "",
+      });
+      setResult(location.state.portefeuille);
+    }
+  }, [location.state]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -40,14 +58,14 @@ export default function SimulationForm() {
 
     const currentYear = new Date().getFullYear();
     const dateDebut = parseInt(formData.date_debut);
-    let dateFin = formData.date_fin ? parseInt(formData.date_fin) : currentYear;
+    const dateFin = formData.date_fin ? parseInt(formData.date_fin) : currentYear;
 
-    if (dateDebut < 1950 || dateDebut > currentYear) {
+    if (isNaN(dateDebut) || dateDebut < 1950 || dateDebut > currentYear) {
       alert(`Année de début : 1950 → ${currentYear}`);
       setLoading(false);
       return;
     }
-    if (dateFin < dateDebut) {
+    if (isNaN(dateFin) || dateFin < dateDebut) {
       alert("Année de fin doit être ≥ année de début");
       setLoading(false);
       return;
@@ -55,12 +73,15 @@ export default function SimulationForm() {
 
     const duree = dateFin - dateDebut;
 
+    // ✅ On ENVOIE les dates au backend
     const dataToSend = {
       montant_initial: parseFloat(formData.montant_initial),
       contribution: parseFloat(formData.contribution),
       frequence: formData.frequence,
-      duree: duree,
+      duree,
       actif: formData.actif || "defaut",
+      date_debut: dateDebut,   // <-- IMPORTANT
+      date_fin: dateFin,       // <-- IMPORTANT
     };
 
     try {
@@ -70,7 +91,18 @@ export default function SimulationForm() {
         body: JSON.stringify(dataToSend),
       });
       const data = await res.json();
-      setResult(data);
+
+      // ✅ On RÉINJECTE les dates dans result.inputs au cas où le backend ne les renvoie pas
+      const enriched = {
+        ...data,
+        inputs: {
+          ...(data.inputs || {}),
+          date_debut: dateDebut,
+          date_fin: dateFin,
+        },
+      };
+
+      setResult(enriched);
     } catch (err) {
       console.error(err);
       alert("Erreur connexion serveur Flask.");
@@ -96,7 +128,7 @@ export default function SimulationForm() {
               name="montant_initial"
               value={formData.montant_initial}
               onChange={handleChange}
-              placeholder="Ex : 100"
+              placeholder="Ex : 1000"
               required
             />
           </label>
@@ -142,7 +174,7 @@ export default function SimulationForm() {
           </label>
 
           <label>
-            Année de fin (Par défaut "2025") :
+            Année de fin (Par défaut “2025”) :
             <input
               type="number"
               name="date_fin"
@@ -150,7 +182,7 @@ export default function SimulationForm() {
               onChange={handleChange}
               min="1950"
               max={new Date().getFullYear()}
-              placeholder="Ex : 2025"
+              placeholder={`Ex : ${new Date().getFullYear()}`}
             />
           </label>
 
@@ -188,16 +220,12 @@ export default function SimulationForm() {
 
               <div className="result-card">
                 <h3>Valeur nette d’investissement</h3>
-                <p>
-                  {result?.resultats?.portefeuille_final_estime?.toFixed(2)} €
-                </p>
+                <p>{result?.resultats?.portefeuille_final_estime?.toFixed(2)} €</p>
               </div>
 
               <div className="result-card">
                 <h3>Volatilité</h3>
-                <p>
-                  {((result?.resultats?.volatilite ?? 0) * 100).toFixed(2)}%
-                </p>
+                <p>{((result?.resultats?.volatilite ?? 0) * 100).toFixed(2)}%</p>
               </div>
 
               <div className="result-card">
@@ -212,19 +240,18 @@ export default function SimulationForm() {
 
               <div className="result-card">
                 <h3>Rendement total</h3>
-                <p>{((result?.resultats?.rendement_total ?? 0)).toFixed(2)}%</p>
+                <p>{(result?.resultats?.rendement_total ?? 0).toFixed(2)}%</p>
               </div>
             </div>
-            {/*  BOUTON DE COMPARAISON (dans le bloc cartes) */}
+
+            {/* Bouton de comparaison (dans le bloc cartes) */}
             <div className="compare-button-container-inside">
-              {result && (
-                <button
-                  className="compare-button"
-                  onClick={() => navigate("/compare", { state: { portefeuille: result } })}
-                >
-                  Comparer votre portefeuille à l’indice ACWI IMI
-                </button>
-              )}
+              <button
+                className="compare-button"
+                onClick={() => navigate("/compare", { state: { portefeuille: result } })}
+              >
+                Comparer votre portefeuille à l’indice ACWI IMI
+              </button>
             </div>
           </div>
         )}
@@ -261,10 +288,9 @@ export default function SimulationForm() {
               <h4>📈 Interprétation</h4>
               <p>
                 Cette courbe montre l’évolution du portefeuille investi en{" "}
-                <strong>{result.inputs.actif || "actif non spécifié"}</strong>{" "}
-                dans le temps, en tenant compte des contributions et des frais
-                de gestion. Une pente ascendante indique une bonne croissance du
-                capital.
+                <strong>{result.inputs.actif || "actif non spécifié"}</strong> dans le temps,
+                en tenant compte des contributions et des frais de gestion. Une pente ascendante
+                indique une bonne croissance du capital.
               </p>
             </div>
           </div>
@@ -316,11 +342,9 @@ export default function SimulationForm() {
             <div className="chart-right">
               <h4>📊 Interprétation</h4>
               <p>
-                Cet histogramme illustre la distribution des rendements pour
-                votre portefeuille en{" "}
-                <strong>{result.inputs.actif || "actif non spécifié"}</strong>.
-                Les barres vertes au-dessus de la ligne rouge représentent des
-                gains, celles en dessous des pertes.
+                Cet histogramme illustre la distribution des rendements pour votre portefeuille en{" "}
+                <strong>{result.inputs.actif || "actif non spécifié"}</strong>. Les barres vertes
+                au-dessus de la ligne rouge représentent des gains, celles en dessous des pertes.
               </p>
             </div>
           </div>

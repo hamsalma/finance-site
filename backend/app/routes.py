@@ -1,6 +1,7 @@
 import yfinance as yf
 from flask import Blueprint, jsonify, request
 import numpy as np
+import pandas as pd
 
 bp = Blueprint("routes", __name__)
 
@@ -88,7 +89,9 @@ def simulate_portfolio():
         "contribution": contribution,
         "frequence": frequence,
         "duree": duree,
-        "actif": actif
+        "actif": actif,
+        "date_debut": data.get("date_debut"),  
+        "date_fin": data.get("date_fin")  
     },
     "resultats": {
         "portefeuille_final_estime": round(portefeuille_final, 2),
@@ -105,36 +108,83 @@ def simulate_portfolio():
 
 @bp.route("/compare_acwi", methods=["POST"])
 def compare_acwi():
-    import yfinance as yf
 
     data = request.get_json()
     montant_initial = float(data.get("montant_initial", 10000))
+    portefeuille_final = float(data.get("portefeuille_final", montant_initial * 1.2))
     date_debut = int(data.get("date_debut", 2015))
     date_fin = int(data.get("date_fin", 2025))
 
     try:
-        # Téléchargement des données
-        acwi = yf.download("ACWI", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False)
+        print(f"--- Téléchargement ACWI de {date_debut} à {date_fin} ---")
+        acwi = yf.download(
+            "ACWI",
+            start=f"{date_debut}-01-01",
+            end=f"{date_fin}-12-31",
+            progress=False,
+            auto_adjust=True,  
+        )
 
         if acwi.empty:
-            acwi = yf.download("URTH", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False)
-
+            print("⚠️ Données vides pour ACWI, tentative avec URTH…")
+            acwi = yf.download(
+                "URTH",
+                start=f"{date_debut}-01-01",
+                end=f"{date_fin}-12-31",
+                progress=False,
+                auto_adjust=True,
+            )
         if acwi.empty:
-            return jsonify({"error": "Aucune donnée trouvée pour l’indice ACWI."}), 404
+            return jsonify({"error": "Aucune donnée disponible pour ACWI/URTH."}), 404
 
-        # Calcul du rendement cumulé
-        acwi["Rendement"] = acwi["Adj Close"].pct_change()
-        acwi["Croissance"] = (1 + acwi["Rendement"]).cumprod() * montant_initial
 
-        # Simplification : 1 point par mois
-        acwi_monthly = acwi.resample("M").last()
+        close_series = None
+        if isinstance(acwi.columns, pd.MultiIndex):
+            candidates = [c for c in acwi.columns
+                          if any(str(level).lower() in ("adj close", "close") for level in (c if isinstance(c, tuple) else (c,)))]
+            if candidates:
+                close_series = acwi[candidates[0]]
+        
+        if close_series is None:
+            if "Adj Close" in acwi.columns:
+                close_series = acwi["Adj Close"]
+            elif "Close" in acwi.columns:
+                close_series = acwi["Close"]
 
-        data_points = [
-            {"date": d.strftime("%Y-%m"), "valeur": round(float(v), 2)}
-            for d, v in zip(acwi_monthly.index, acwi_monthly["Croissance"])
+        if close_series is None:
+            num_cols = acwi.select_dtypes(include="number")
+            if num_cols.shape[1] == 0:
+                return jsonify({"error": "Aucune colonne numérique exploitable dans ACWI."}), 500
+            close_series = num_cols.iloc[:, 0]
+
+        monthly_close = close_series.resample("M").last().dropna()
+        if monthly_close.empty:
+            return jsonify({"error": "Pas de points mensuels valides pour l’indice."}), 400
+
+        monthly_ret = monthly_close.pct_change()
+        acwi_growth = (1.0 + monthly_ret).cumprod() * montant_initial
+        acwi_growth = acwi_growth.dropna()
+
+        n = len(acwi_growth)
+        port_path = np.linspace(montant_initial, portefeuille_final, n)
+
+        comparaison = [
+            {
+                "date": idx.strftime("%Y-%m"),
+                "portefeuille": round(float(port_path[i]), 2),
+                "acwi": round(float(acwi_growth.iloc[i]), 2),
+            }
+            for i, idx in enumerate(acwi_growth.index)
         ]
 
-        return jsonify({"acwi": data_points})
+        print(f"✅ Données ACWI prêtes ({len(comparaison)} points)")
+        return jsonify({"comparaison": comparaison})
 
     except Exception as e:
+        import traceback
+        print("❌ ERREUR /compare_acwi :", e)
+        traceback.print_exc()
         return jsonify({"error": f"Erreur téléchargement ACWI : {str(e)}"}), 500
+
+
+

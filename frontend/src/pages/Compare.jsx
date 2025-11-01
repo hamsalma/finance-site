@@ -32,8 +32,8 @@ export default function Compare() {
             montant_initial: portefeuille?.inputs?.montant_initial || 10000,
             portefeuille_final:
               portefeuille?.resultats?.portefeuille_final_estime || 15000,
-            date_debut: portefeuille?.inputs?.date_debut || 2015,
-            date_fin: portefeuille?.inputs?.date_fin || 2025,
+            date_debut: parseInt(portefeuille?.inputs?.date_debut) || 2015,
+            date_fin: parseInt(portefeuille?.inputs?.date_fin) || 2025,
           }),
         });
 

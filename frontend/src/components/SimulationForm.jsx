@@ -6,11 +6,18 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  Legend,
+  ReferenceLine,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 const API_URL = "http://127.0.0.1:5000";
 
 export default function SimulationForm() {
+  const navigate = useNavigate(); 
   const [formData, setFormData] = useState({
     montant_initial: "",
     contribution: "",
@@ -41,7 +48,7 @@ export default function SimulationForm() {
       return;
     }
     if (dateFin < dateDebut) {
-      alert(`Année de fin doit être ≥ année de début`);
+      alert("Année de fin doit être ≥ année de début");
       setLoading(false);
       return;
     }
@@ -63,21 +70,6 @@ export default function SimulationForm() {
         body: JSON.stringify(dataToSend),
       });
       const data = await res.json();
-
-      // ⚙️ Génération d’un historique simulé (pour affichage du graphique)
-      const historique = [];
-      const valeurInit = data.inputs.montant_initial;
-      const totalFinal = data.resultats.portefeuille_final_estime;
-      const steps = data.inputs.duree || 5;
-
-      for (let i = 0; i <= steps; i++) {
-        const valeur =
-          valeurInit + ((totalFinal - valeurInit) * i) / steps;
-        historique.push({ periode: `Année ${i}`, valeur: valeur.toFixed(2) });
-      }
-
-      data.resultats.historique = historique;
-
       setResult(data);
     } catch (err) {
       console.error(err);
@@ -91,7 +83,8 @@ export default function SimulationForm() {
     <div className="app-container">
       <h1 className="page-title">Simulation de Portefeuille</h1>
 
-      <div className="simulation-grid">
+      {/* --- SECTION PRINCIPALE --- */}
+      <div className="main-section">
         {/* FORMULAIRE */}
         <form onSubmit={handleSubmit} className="simulation-form">
           <h2>Paramètres du portefeuille</h2>
@@ -149,7 +142,7 @@ export default function SimulationForm() {
           </label>
 
           <label>
-            Année de fin (Par défaut "2025) :
+            Année de fin (Par défaut "2025") :
             <input
               type="number"
               name="date_fin"
@@ -168,7 +161,7 @@ export default function SimulationForm() {
               value={formData.actif}
               onChange={handleChange}
             >
-               <option value="">— Sélectionnez —</option>
+              <option value="">— Sélectionnez —</option>
               <option value="actions">Actions</option>
               <option value="obligations">Obligations</option>
               <option value="etf">ETF</option>
@@ -180,70 +173,159 @@ export default function SimulationForm() {
           </button>
         </form>
 
-        {/* RÉSULTATS */}
+        {/* --- RÉSULTATS --- */}
         {result && (
           <div className="result-section">
             <h2>Résultats de la simulation</h2>
 
-              <div className="cards-container">
-                <div className="result-card">
-                <h3>Montant total investi sur {result?.inputs?.duree ?? 0} années</h3>
+            <div className="cards-container">
+              <div className="result-card">
+                <h3>
+                  Montant total investi sur {result?.inputs?.duree ?? 0} années
+                </h3>
                 <p>{result?.resultats?.montant_total_investi?.toFixed(2)} €</p>
               </div>
 
               <div className="result-card">
                 <h3>Valeur nette d’investissement</h3>
-                <p>{result?.resultats?.portefeuille_final_estime?.toFixed(2)} €</p>
+                <p>
+                  {result?.resultats?.portefeuille_final_estime?.toFixed(2)} €
+                </p>
               </div>
 
               <div className="result-card">
                 <h3>Volatilité</h3>
                 <p>
-                  {(result?.resultats?.volatilite * 100 ?? 0).toFixed(2)}%
+                  {((result?.resultats?.volatilite ?? 0) * 100).toFixed(2)}%
                 </p>
-                <small>{result?.interpretations?.volatilite}</small>
               </div>
 
               <div className="result-card">
                 <h3>Ratio Sharpe</h3>
                 <p>{(result?.resultats?.ratio_sharpe ?? 0).toFixed(2)}</p>
-                <small>{result?.interpretations?.ratio_sharpe}</small>
               </div>
 
               <div className="result-card">
                 <h3>CAGR</h3>
-                <p>{(result?.resultats?.cagr * 100 ?? 0).toFixed(2)}%</p>
-                <small>{result?.interpretations?.cagr}</small>
+                <p>{((result?.resultats?.cagr ?? 0) * 100).toFixed(2)}%</p>
               </div>
 
               <div className="result-card">
                 <h3>Rendement total</h3>
-                <p>{result?.resultats?.rendement_total ?? 0} %</p>
-                <small>{result?.interpretations?.rendement_total}</small>
+                <p>{((result?.resultats?.rendement_total ?? 0)).toFixed(2)}%</p>
               </div>
             </div>
+            {/*  BOUTON DE COMPARAISON (dans le bloc cartes) */}
+            <div className="compare-button-container-inside">
+              {result && (
+                <button
+                  className="compare-button"
+                  onClick={() => navigate("/compare", { state: { portefeuille: result } })}
+                >
+                  Comparer votre portefeuille à l’indice ACWI IMI
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
-            {/* --- GRAPHIQUE D'ÉVOLUTION --- */}
-            <div className="result-chart">
-              <h3>Évolution simulée du portefeuille</h3>
-              <ResponsiveContainer width="100%" height={250}>
+      {/* --- SECTION GRAPHIQUES --- */}
+      {result && (
+        <div className="charts-section">
+          <h2 className="charts-title">Visualisations des performances</h2>
+
+          <div className="chart-row">
+            <div className="chart-left">
+              <h3>Courbe de performance cumulée</h3>
+              <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={result.resultats.historique}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="periode" stroke="#aaa" />
+                  <YAxis stroke="#aaa" />
+                  <Tooltip />
+                  <Legend verticalAlign="top" height={36} />
                   <Line
                     type="monotone"
                     dataKey="valeur"
                     stroke="#7b68ee"
                     strokeWidth={3}
-                    dot={{ r: 4 }}
+                    dot={false}
+                    name="Valeur du portefeuille (€)"
                   />
-                  <XAxis dataKey="periode" stroke="#aaa" />
-                  <YAxis hide />
-                  <Tooltip />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
+            <div className="chart-right">
+              <h4>📈 Interprétation</h4>
+              <p>
+                Cette courbe montre l’évolution du portefeuille investi en{" "}
+                <strong>{result.inputs.actif || "actif non spécifié"}</strong>{" "}
+                dans le temps, en tenant compte des contributions et des frais
+                de gestion. Une pente ascendante indique une bonne croissance du
+                capital.
+              </p>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="chart-row">
+            <div className="chart-left">
+              <h3>Histogramme des rendements périodiques</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={result.resultats.rendements}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="periode"
+                    stroke="#aaa"
+                    label={{
+                      value:
+                        result.inputs.frequence === "mensuelle"
+                          ? "Mois"
+                          : result.inputs.frequence === "trimestrielle"
+                          ? "Trimestre"
+                          : result.inputs.frequence === "semestrielle"
+                          ? "Semestre"
+                          : "Année",
+                      position: "insideBottom",
+                      offset: -5,
+                      fill: "#aaa",
+                    }}
+                  />
+                  <YAxis
+                    stroke="#aaa"
+                    domain={["dataMin - 5", "dataMax + 5"]}
+                    allowDataOverflow={true}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  <Tooltip
+                    formatter={(value) => `${value.toFixed(2)} %`}
+                    labelFormatter={(label) =>
+                      result.inputs.frequence === "mensuelle"
+                        ? `Mois ${label}`
+                        : `Année ${label}`
+                    }
+                  />
+                  <Legend verticalAlign="top" height={36} />
+                  <Bar dataKey="rendement" fill="#2ecc71" name="Rendement (%)" />
+                  <ReferenceLine y={0} stroke="#ff6b6b" strokeWidth={1.5} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-right">
+              <h4>📊 Interprétation</h4>
+              <p>
+                Cet histogramme illustre la distribution des rendements pour
+                votre portefeuille en{" "}
+                <strong>{result.inputs.actif || "actif non spécifié"}</strong>.
+                Les barres vertes au-dessus de la ligne rouge représentent des
+                gains, celles en dessous des pertes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

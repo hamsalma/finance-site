@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import SimulationForm from "./components/SimulationForm";
+import Compare from "./pages/Compare";
 import Home from "./pages/Home";
 import "./index.css";
 import "./styles/Home.css";
@@ -17,6 +18,8 @@ function App() {
 
         {/* Redirection si route inconnue */}
         <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Page de comparaison */}
+        <Route path="/compare" element={<Compare />} />
       </Routes>
     </Router>
   );

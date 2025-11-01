@@ -1,3 +1,4 @@
+import yfinance as yf
 from flask import Blueprint, jsonify, request
 import numpy as np
 
@@ -66,6 +67,20 @@ def simulate_portfolio():
 
     R_p = rendement_total / 100
     ratio_sharpe = (R_p - taux_sans_risque) / volatilite if volatilite > 0 else 0
+
+    # --- Historique du portefeuille (évolution cumulée) ---
+    historique = [
+    {"periode": i, "valeur": round(v, 2)}
+    for i, v in enumerate(valeurs)
+]
+
+    # --- Rendements périodiques pour histogramme ---
+    rendements_portefeuille = np.diff(valeurs) / valeurs[:-1]
+    rendements_histogramme = [
+    {"periode": i + 1, "rendement": round(r * 100, 3)}  # en %
+    for i, r in enumerate(rendements_portefeuille)
+]
+
     
     result = {
     "inputs": {
@@ -82,7 +97,44 @@ def simulate_portfolio():
         "ratio_sharpe": round(ratio_sharpe, 4),
         "cagr": round(cagr, 4),
         "rendement_total": round(rendement_total, 2),
+        "historique": historique,
+        "rendements": rendements_histogramme
     }
 }
     return jsonify(result)
 
+@bp.route("/compare_acwi", methods=["POST"])
+def compare_acwi():
+    import yfinance as yf
+
+    data = request.get_json()
+    montant_initial = float(data.get("montant_initial", 10000))
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
+
+    try:
+        # Téléchargement des données
+        acwi = yf.download("ACWI", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False)
+
+        if acwi.empty:
+            acwi = yf.download("URTH", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False)
+
+        if acwi.empty:
+            return jsonify({"error": "Aucune donnée trouvée pour l’indice ACWI."}), 404
+
+        # Calcul du rendement cumulé
+        acwi["Rendement"] = acwi["Adj Close"].pct_change()
+        acwi["Croissance"] = (1 + acwi["Rendement"]).cumprod() * montant_initial
+
+        # Simplification : 1 point par mois
+        acwi_monthly = acwi.resample("M").last()
+
+        data_points = [
+            {"date": d.strftime("%Y-%m"), "valeur": round(float(v), 2)}
+            for d, v in zip(acwi_monthly.index, acwi_monthly["Croissance"])
+        ]
+
+        return jsonify({"acwi": data_points})
+
+    except Exception as e:
+        return jsonify({"error": f"Erreur téléchargement ACWI : {str(e)}"}), 500

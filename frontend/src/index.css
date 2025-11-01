@@ -6,12 +6,7 @@
   --accent-light: #a79aff;
   --card-bg: rgba(35, 35, 50, 0.85);
 }
-.result-card {
-  background: linear-gradient(145deg, rgba(35,35,50,0.9), rgba(45,45,70,0.9));
-}
-button {
-  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
-}
+
 /* --- TITRE PRINCIPAL --- */
 h1 {
   text-align: center;
@@ -28,12 +23,17 @@ h1 {
 }
 
 @keyframes titleGlow {
-  from { text-shadow: 0 0 10px rgba(123, 108, 255, 0.4); }
-  to { text-shadow: 0 0 25px rgba(123, 108, 255, 0.8); }
+  from {
+    text-shadow: 0 0 10px rgba(123, 108, 255, 0.4);
+  }
+  to {
+    text-shadow: 0 0 25px rgba(123, 108, 255, 0.8);
+  }
 }
 
 /* --- SOUS-TITRES --- */
-h2, h3 {
+h2,
+h3 {
   text-align: center;
   color: #fff;
   letter-spacing: 0.4px;
@@ -62,6 +62,9 @@ h2, h3 {
   border-radius: 18px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: appear 0.8s ease-out forwards;
 }
 
 .simulation-form:hover {
@@ -105,6 +108,7 @@ button {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
 }
 
 button:hover {
@@ -121,6 +125,9 @@ button:hover {
   padding: 2em;
   border-radius: 18px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: appear 0.8s ease-out forwards;
 }
 
 .result-section h2 {
@@ -129,7 +136,7 @@ button:hover {
   color: var(--accent-light);
 }
 
-/* --- CARTES EN GRILLE 2 PAR 2 --- */
+/* --- CARTES EN GRILLE --- */
 .cards-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -140,7 +147,7 @@ button:hover {
 
 /* --- STYLE DES CARTES --- */
 .result-card {
-  background: var(--card-bg);
+  background: linear-gradient(145deg, rgba(35, 35, 50, 0.9), rgba(45, 45, 70, 0.9));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 1.5em 1.2em;
@@ -151,17 +158,6 @@ button:hover {
   transition: all 0.3s ease;
   animation: fadeInUp 0.7s ease forwards;
   opacity: 0;
-}
-
-@keyframes fadeInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 .result-card:hover {
@@ -189,26 +185,16 @@ button:hover {
   font-size: 0.9em;
 }
 
-/* --- RESPONSIVE --- */
-@media (max-width: 900px) {
-  .simulation-grid {
-    grid-template-columns: 1fr;
-    max-width: 600px;
+/* --- ANIMATIONS --- */
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
   }
-
-  .cards-container {
-    grid-template-columns: 1fr;
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
-
-  h1 {
-    font-size: 1.8rem;
-    margin-top: 1em;
-  }
-}
-.simulation-form, .result-section {
-  opacity: 0;
-  transform: translateY(20px);
-  animation: appear 0.8s ease-out forwards;
 }
 
 @keyframes appear {
@@ -221,17 +207,153 @@ button:hover {
     transform: translateY(0);
   }
 }
-/* --- SECTION GRAPHIQUE --- */
-.result-chart {
-  margin-top: 2em;
-  background: rgba(25, 25, 35, 0.8);
-  border-radius: 16px;
-  padding: 1.5em;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+
+/* --- SECTION VISUALISATIONS (GRAPHIQUES + TEXTES) --- */
+.charts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3em;
+  margin-top: 3em;
+  padding-top: 2em;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.result-chart h3 {
-  text-align: center;
-  color: var(--accent-light);
-  margin-bottom: 1em;
+.chart-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2.5em;
+  background: rgba(20, 20, 30, 0.95);
+  border-radius: 16px;
+  padding: 2em;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.45);
 }
+
+.chart-left {
+  flex: 2;
+  min-width: 60%;
+}
+
+.chart-right {
+  flex: 1;
+  background: rgba(35, 35, 50, 0.8);
+  border-radius: 12px;
+  padding: 1.5em;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.chart-right h4 {
+  color: var(--accent-light);
+  margin-bottom: 0.6em;
+  font-weight: 600;
+}
+
+.chart-right p {
+  color: #ddd;
+  line-height: 1.6;
+  font-size: 0.95em;
+  text-align: justify;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 900px) {
+  .simulation-grid {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+  }
+
+  .cards-container {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-row {
+    flex-direction: column;
+  }
+
+  .chart-left,
+  .chart-right {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    margin-top: 1em;
+  }
+}
+/* --- SECTION PRINCIPALE : formulaire à gauche, résultats à droite --- */
+.main-section {
+  display: flex;
+  justify-content: flex-start; /* 👈 garde le contenu collé à gauche */
+  align-items: flex-start;
+  gap: 3em;
+  max-width: 1200px;
+  margin: 0 auto 3em;
+  padding: 0 2em; /* ajoute un peu d’air sur les côtés */
+}
+
+/* Formulaire collé à gauche et taille contrôlée */
+.simulation-form {
+  flex: 0 0 40%; /* 👈 occupe environ 40% du bloc, ne s'étire plus */
+  max-width: 420px;
+  min-width: 300px;
+  background: rgba(25, 25, 35, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  padding: 2em;
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: appear 0.8s ease-out forwards;
+}
+
+/* Résultats à droite avec taille fluide */
+.result-section {
+  flex: 1;
+  background: rgba(25, 25, 35, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  padding: 2em;
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: appear 0.8s ease-out forwards;
+}
+
+.charts-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5em;
+  color: var(--accent-light);
+}
+
+.main-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5em;
+  color: var(--accent-light);
+}
+
+.compare-button-container-inside {
+  text-align: center;
+  margin-top: 1.5em;
+}
+
+.compare-button {
+  display: inline-block;
+  padding: 0.8em 1.8em;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: white;
+  font-weight: 600;
+  border-radius: 10px;
+  text-decoration: none;
+  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.compare-button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--accent-light), #948fff);
+  box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
+}
+

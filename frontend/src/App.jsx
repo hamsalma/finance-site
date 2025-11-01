@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import SimulationForm from "./components/SimulationForm";
 import Compare from "./pages/Compare";
+import Predict from "./pages/Predict";
 import Home from "./pages/Home";
 import "./index.css";
 import "./styles/Home.css";
@@ -20,6 +21,9 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
         {/* Page de comparaison */}
         <Route path="/compare" element={<Compare />} />
+        {/* Page de prediction */}
+        <Route path="/predict" element={<Predict />} />
+
       </Routes>
     </Router>
   );

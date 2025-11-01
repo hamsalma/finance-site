@@ -250,9 +250,17 @@ export default function SimulationForm() {
                 className="compare-button"
                 onClick={() => navigate("/compare", { state: { portefeuille: result } })}
               >
-                Comparer votre portefeuille à l’indice ACWI IMI
+                Comparer à l’indice ACWI IMI
+              </button>
+
+              <button
+                className="predict-button"
+                onClick={() => navigate("/predict", { state: { portefeuille: result } })}
+              >
+                Prédire les rendements futurs
               </button>
             </div>
+
           </div>
         )}
       </div>

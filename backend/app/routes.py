@@ -2,6 +2,7 @@ import yfinance as yf
 from flask import Blueprint, jsonify, request
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 bp = Blueprint("routes", __name__)
 
@@ -185,6 +186,89 @@ def compare_acwi():
         print("❌ ERREUR /compare_acwi :", e)
         traceback.print_exc()
         return jsonify({"error": f"Erreur téléchargement ACWI : {str(e)}"}), 500
+
+@bp.route("/predict_returns", methods=["POST"])
+def predict_returns():
+    data = request.get_json()
+
+    actif_type = data.get("actif", "defaut").lower()
+    actif_map = {
+        "actions": "SPY",
+        "obligations": "BND",
+        "etf": "ACWI",
+        "defaut": "ACWI"
+    }
+    ticker = actif_map.get(actif_type, "ACWI")
+
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
+
+    try:
+        print(f"--- Téléchargement historique {ticker} ({date_debut}-{date_fin}) ---")
+        df = yf.download(ticker, start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
+
+        if df.empty:
+            return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
+
+        # --- Rendements journaliers puis cumulés ---
+        df["Return"] = df["Close"].pct_change()
+        df["Cumulative"] = (1 + df["Return"]).cumprod() - 1  # performance cumulée
+        df = df.dropna().reset_index()
+
+        # --- Régression linéaire sur la tendance cumulée ---
+        X = np.arange(len(df)).reshape(-1, 1)
+        y = df["Cumulative"].values.reshape(-1, 1)
+
+        model = LinearRegression()
+        model.fit(X, y)
+        trend = model.predict(X).flatten()
+
+        # --- Prévision sur 12 périodes futures ---
+        future_X = np.arange(len(df), len(df) + 12).reshape(-1, 1)
+        future_pred = model.predict(future_X).flatten()
+
+        # --- Résidus & écarts-types dynamiques ---
+        residuals = y.flatten() - trend
+        std_1 = float(np.std(residuals))
+        std_2 = 2 * std_1
+        std_3 = 3 * std_1
+
+        # --- Préparation des données pour le graphe ---
+        hist_data = [
+            {
+                "periode": int(i + 1),
+                "rendement": float(df["Cumulative"].iloc[i]) * 100,
+                "tendance": float(trend[i]) * 100,
+            }
+            for i in range(len(df))
+        ]
+        future_data = [
+            {
+                "periode": len(df) + i + 1,
+                "prediction": float(future_pred[i]) * 100,
+            }
+            for i in range(len(future_pred))
+        ]
+
+        print(f"✅ Régression terminée : {ticker} ({len(hist_data)} points + prévision 12 pas)")
+
+        return jsonify({
+            "actif": ticker,
+            "historique": hist_data,
+            "futur": future_data,
+            "ecarts_types": {"σ": std_1, "2σ": std_2, "3σ": std_3},
+            "rendement_moyen": float(np.mean(df["Return"])),
+            "rendement_prevu_moyen": float(np.mean(future_pred) / len(df))  # tendance moyenne future
+        })
+
+    except Exception as e:
+        import traceback
+        print("❌ ERREUR /predict_returns :", e)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 
 

@@ -2,6 +2,7 @@ import yfinance as yf
 from flask import Blueprint, jsonify, request
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 bp = Blueprint("routes", __name__)
 
@@ -185,6 +186,127 @@ def compare_acwi():
         print("❌ ERREUR /compare_acwi :", e)
         traceback.print_exc()
         return jsonify({"error": f"Erreur téléchargement ACWI : {str(e)}"}), 500
+
+@bp.route("/predict_returns", methods=["POST"])
+def predict_returns():
+    import scipy.stats as stats
+
+    data = request.get_json()
+
+    actif_type = data.get("actif", "defaut").lower()
+    actif_map = {
+        "actions": "SPY",        # ETF d'actions US
+        "obligations": "BND",    # ETF d’obligations
+        "etf": "ACWI",           # ETF global
+        "defaut": "ACWI"
+    }
+    ticker = actif_map.get(actif_type, "ACWI")
+
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
+    montant_initial = float(data.get("montant_initial", 10000))
+
+    try:
+        print(f"--- Téléchargement historique {ticker} ({date_debut}-{date_fin}) ---")
+        df = yf.download(
+            ticker,
+            start=f"{date_debut}-01-01",
+            end=f"{date_fin}-12-31",
+            progress=False
+        )
+
+        # 🔹 Normalisation du dataframe
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[-1] for col in df.columns]
+
+        # 🔹 Choix du prix pertinent
+        if "Adj Close" in df.columns:
+            prix = df["Adj Close"]
+        elif "Close" in df.columns:
+            prix = df["Close"]
+        else:
+            num_cols = df.select_dtypes(include="number")
+            if num_cols.shape[1] == 0:
+                return jsonify({"error": "Aucune colonne de prix exploitable."}), 500
+            prix = num_cols.iloc[:, 0]
+
+        if prix.empty:
+            return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
+
+        # --- Calcul des rendements journaliers (%)
+        df["Return"] = prix.pct_change() * 100
+        df = df.dropna().reset_index()
+
+        X = np.arange(len(df)).reshape(-1, 1)
+        y = df["Return"].values.reshape(-1, 1)
+
+        # --- Régression linéaire
+        model = LinearRegression()
+        model.fit(X, y)
+        trend = model.predict(X).flatten()
+        beta = float(model.coef_[0])
+
+        # --- Projection sur 12 périodes futures
+        future_X = np.arange(len(df), len(df) + 12).reshape(-1, 1)
+        future_pred = model.predict(future_X).flatten()
+
+        # --- Résidus et écarts-types
+        residuals = y.flatten() - trend
+        std_1 = np.std(residuals)
+        std_2 = 2 * std_1
+        std_3 = 3 * std_1
+
+        # --- Intervalle de confiance empirique (Student)
+        n = len(df)
+        conf = 0.95
+        stderr = np.std(residuals, ddof=1) / np.sqrt(n)
+        t_crit = stats.t.ppf((1 + conf) / 2, df=n - 1)
+        margin_error = t_crit * stderr
+        ci_lower = np.mean(future_pred) - margin_error
+        ci_upper = np.mean(future_pred) + margin_error
+
+        # --- Données à renvoyer
+        hist_data = [
+            {"periode": i + 1, "rendement": float(df["Return"].iloc[i]),
+             "tendance": float(trend[i])}
+            for i in range(len(df))
+        ]
+        future_data = [
+            {"periode": len(df) + i + 1, "prediction": float(future_pred[i])}
+            for i in range(len(future_pred))
+        ]
+
+        print(f"✅ Prédiction terminée : {ticker} ({len(hist_data)} points)")
+
+        return jsonify({
+            "actif": ticker,
+            "beta": beta,
+            "historique": hist_data,
+            "futur": future_data,
+            "rendement_moyen": round(np.mean(df["Return"]), 5),
+            "rendement_prevu_moyen": round(np.mean(future_pred), 5),
+            "ecarts_types": {
+                "σ": round(std_1 / 100, 5),  # ramené à proportions
+                "2σ": round(std_2 / 100, 5),
+                "3σ": round(std_3 / 100, 5)
+            },
+            "intervalle_confiance": {
+                "niveau": f"{int(conf * 100)}%",
+                "borne_inf": round(ci_lower, 4),
+                "borne_sup": round(ci_upper, 4)
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        print("❌ ERREUR /predict_returns :", e)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
 
 
 

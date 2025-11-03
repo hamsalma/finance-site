@@ -334,21 +334,35 @@ button:hover {
   color: var(--accent-light);
 }
 
+/* --- Boutons de comparaison et de prédiction --- */
 .compare-button-container-inside {
   text-align: center;
-  margin-top: 1.5em;
+  margin-top: 2em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1em;
 }
 
-.compare-button {
+.compare-button,
+.predict-button {
   display: inline-block;
-  padding: 0.8em 1.8em;
-  background: linear-gradient(135deg, var(--accent), var(--accent-light));
-  color: white;
+  padding: 0.9em 2em;
   font-weight: 600;
+  border: none;
   border-radius: 10px;
+  color: white;
   text-decoration: none;
+  cursor: pointer;
   box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
   transition: all 0.3s ease;
+  width: 80%;
+  max-width: 350px;
+}
+
+/* Style spécifique pour le bouton de comparaison */
+.compare-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
 }
 
 .compare-button:hover {
@@ -356,4 +370,16 @@ button:hover {
   background: linear-gradient(135deg, var(--accent-light), #948fff);
   box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
 }
+
+/* Style spécifique pour le bouton de prédiction */
+.predict-button {
+  background: linear-gradient(135deg, #2ecc71, #5be37a);
+}
+
+.predict-button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #5be37a, #89f7af);
+  box-shadow: 0 4px 12px rgba(91, 227, 122, 0.4);
+}
+
 

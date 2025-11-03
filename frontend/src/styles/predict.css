@@ -1,0 +1,129 @@
+/* --- GRAPHIQUE --- */
+.chart-container {
+  width: 90%;
+  max-width: 1100px;
+  height: 480px;
+  background: rgba(35, 35, 55, 0.9);
+  border-radius: 14px;
+  padding: 1.5em;
+  margin: 0 auto 3em;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+}
+
+/* --- STATISTIQUES DYNAMIQUES --- */
+.stats-section {
+  background: rgba(35, 35, 55, 0.9);
+  padding: 2em;
+  border-radius: 14px;
+  margin: 3em auto 2em;
+  width: 90%;
+  max-width: 1100px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.stats-section h3 {
+  color: var(--accent-light);
+  margin-bottom: 1.8em;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5em;
+  justify-items: center;
+}
+
+.stat-card {
+  background: rgba(50, 50, 70, 0.9);
+  border-radius: 12px;
+  padding: 1.4em;
+  width: 85%;
+  max-width: 420px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 18px rgba(120, 108, 255, 0.5);
+}
+
+.stat-card h4 {
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: 0.6em;
+}
+
+.stat-card p {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: var(--accent-light);
+  margin: 0;
+}
+
+.predict-desc {
+  text-align: center;
+  color: #bcbcbc;
+  margin: 1em auto 2em;
+  font-size: 0.95rem;
+  max-width: 850px;
+  line-height: 1.5;
+}
+/* --- INTERPRÉTATION --- */
+.predict-interpretation {
+  background: rgba(35, 35, 55, 0.95);
+  margin: 3em auto 2em;
+  padding: 2.5em 3em;
+  border-radius: 16px;
+  width: 85%;
+  max-width: 950px;
+  color: #e0e0e0;
+  text-align: justify;
+  line-height: 1.8;
+  font-size: 1rem;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.predict-interpretation h4 {
+  text-align: center;
+  color: var(--accent-light);
+  margin-bottom: 1.2em;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.predict-interpretation p {
+  max-width: 850px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* --- BOUTON RETOUR --- */
+.predict-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 3em;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 900px) {
+  .predict-interpretation {
+    width: 92%;
+    padding: 1.8em;
+    font-size: 0.95rem;
+  }
+
+  .predict-interpretation p {
+    text-align: justify;
+  }
+}

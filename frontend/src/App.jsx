@@ -4,6 +4,7 @@ import SimulationForm from "./components/SimulationForm";
 import Compare from "./pages/Compare";
 import Predict from "./pages/Predict";
 import Home from "./pages/Home";
+import Strategies from "./pages/Strategies";
 import "./index.css";
 import "./styles/Home.css";
 
@@ -23,6 +24,8 @@ function App() {
         <Route path="/compare" element={<Compare />} />
         {/* Page de prediction */}
         <Route path="/predict" element={<Predict />} />
+        {/* Page de comparaison strategies */}
+        <Route path="/compare_strategies" element={<Strategies />} />
 
       </Routes>
     </Router>

@@ -1,385 +1,114 @@
+/* === STYLE GLOBAL === */
+
 :root {
-  font-family: "Inter", system-ui, sans-serif;
-  background: radial-gradient(circle at top left, #0b0b10, #111118 80%);
-  color: #f5f5f5;
+  --bg-dark: #0b0b10;
+  --bg-darker: #111118;
+  --card-bg: rgba(25, 25, 35, 0.9);
   --accent: #7c6cff;
   --accent-light: #a79aff;
-  --card-bg: rgba(35, 35, 50, 0.85);
+  --text-light: #f5f5f5;
+  --text-gray: #ccc;
+  --shadow-soft: rgba(0, 0, 0, 0.4);
+  --radius: 12px;
 }
 
-/* --- TITRE PRINCIPAL --- */
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background: radial-gradient(circle at top left, var(--bg-dark), var(--bg-darker) 80%);
+  color: var(--text-light);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* === TITRES === */
+h1, h2, h3 {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 h1 {
   text-align: center;
   font-size: 2.3rem;
+  margin: 1.5em auto 0.8em;
+  text-shadow: 0 0 12px rgba(123, 108, 255, 0.4);
+}
+
+h2 {
+  color: var(--accent-light);
+  text-align: center;
   margin-top: 1.5em;
-  margin-bottom: 1.2em;
-  letter-spacing: 1px;
-  font-weight: 700;
-  background: linear-gradient(90deg, var(--accent-light), var(--accent));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: titleGlow 4s ease-in-out infinite alternate;
 }
 
-@keyframes titleGlow {
-  from {
-    text-shadow: 0 0 10px rgba(123, 108, 255, 0.4);
-  }
-  to {
-    text-shadow: 0 0 25px rgba(123, 108, 255, 0.8);
-  }
+/* === CARTES & BLOCS === */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 1.8em;
+  box-shadow: 0 6px 20px var(--shadow-soft);
+  transition: all 0.3s ease;
 }
 
-/* --- SOUS-TITRES --- */
-h2,
-h3 {
-  text-align: center;
-  color: #fff;
-  letter-spacing: 0.4px;
-}
-
-/* --- CONTAINER PRINCIPAL --- */
-.simulation-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3em;
-  max-width: 1200px;
-  margin: 0 auto 4em;
-  padding: 2em;
-  align-items: start;
-}
-
-/* --- FORMULAIRE --- */
-.simulation-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2em;
-  background: rgba(25, 25, 35, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  padding: 2em;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: appear 0.8s ease-out forwards;
-}
-
-.simulation-form:hover {
+.card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 30px rgba(100, 108, 255, 0.25);
+  box-shadow: 0 8px 25px rgba(120, 108, 255, 0.3);
 }
 
-.simulation-form label {
-  display: flex;
-  flex-direction: column;
-  font-weight: 500;
-  color: #ccc;
-}
-
-.simulation-form input,
-.simulation-form select {
-  margin-top: 0.5em;
-  padding: 0.8em 1em;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(45, 45, 60, 0.9);
-  color: #fff;
-  font-size: 1em;
-  transition: all 0.3s ease;
-}
-
-.simulation-form input:focus,
-.simulation-form select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 8px rgba(123, 108, 255, 0.4);
-  outline: none;
-}
-
-/* --- BOUTON --- */
-button {
-  padding: 0.9em;
+/* === BOUTONS === */
+button, .btn {
   background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: white;
   font-weight: 600;
   border: none;
   border-radius: 10px;
+  padding: 0.9em 1.8em;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
+  box-shadow: 0 0 15px rgba(123, 108, 255, 0.3);
 }
 
-button:hover {
+button:hover, .btn:hover {
   transform: translateY(-2px);
-  background: linear-gradient(135deg, var(--accent-light), #948fff);
-  box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  box-shadow: 0 4px 18px rgba(123, 108, 255, 0.4);
 }
 
-/* --- SECTION RÉSULTATS --- */
-.result-section {
-  background: rgba(25, 25, 35, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  padding: 2em;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  transform: translateY(20px);
-  animation: appear 0.8s ease-out forwards;
-}
-
-.result-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5em;
-  color: var(--accent-light);
-}
-
-/* --- CARTES EN GRILLE --- */
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5em;
-  justify-items: center;
-  width: 100%;
-}
-
-/* --- STYLE DES CARTES --- */
-.result-card {
-  background: linear-gradient(145deg, rgba(35, 35, 50, 0.9), rgba(45, 45, 70, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 1.5em 1.2em;
-  text-align: center;
-  width: 90%;
-  max-width: 280px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s ease;
-  animation: fadeInUp 0.7s ease forwards;
-  opacity: 0;
-}
-
-.result-card:hover {
-  transform: translateY(-6px);
-  background: linear-gradient(145deg, #2b2b3d, #3a3a50);
-  border-color: var(--accent);
-  box-shadow: 0 6px 22px rgba(123, 108, 255, 0.3);
-}
-
-.result-card h3 {
-  color: #ffffff;
-  font-weight: 600;
-  margin-bottom: 0.6em;
-}
-
-.result-card p {
-  font-size: 1.5em;
-  font-weight: 700;
-  color: var(--accent-light);
-  margin: 0.3em 0;
-}
-
-.result-card small {
-  color: #aaa;
-  font-size: 0.9em;
-}
-
-/* --- ANIMATIONS --- */
-@keyframes fadeInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes appear {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* --- SECTION VISUALISATIONS (GRAPHIQUES + TEXTES) --- */
-.charts-section {
-  display: flex;
-  flex-direction: column;
-  gap: 3em;
-  margin-top: 3em;
-  padding-top: 2em;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.chart-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 2.5em;
-  background: rgba(20, 20, 30, 0.95);
-  border-radius: 16px;
-  padding: 2em;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.45);
-}
-
-.chart-left {
-  flex: 2;
-  min-width: 60%;
-}
-
-.chart-right {
-  flex: 1;
-  background: rgba(35, 35, 50, 0.8);
-  border-radius: 12px;
-  padding: 1.5em;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-.chart-right h4 {
-  color: var(--accent-light);
-  margin-bottom: 0.6em;
-  font-weight: 600;
-}
-
-.chart-right p {
-  color: #ddd;
-  line-height: 1.6;
-  font-size: 0.95em;
-  text-align: justify;
-}
-
-/* --- RESPONSIVE --- */
-@media (max-width: 900px) {
-  .simulation-grid {
-    grid-template-columns: 1fr;
-    max-width: 600px;
-  }
-
-  .cards-container {
-    grid-template-columns: 1fr;
-  }
-
-  .chart-row {
-    flex-direction: column;
-  }
-
-  .chart-left,
-  .chart-right {
-    width: 100%;
-  }
-
-  h1 {
-    font-size: 1.8rem;
-    margin-top: 1em;
-  }
-}
-/* --- SECTION PRINCIPALE : formulaire à gauche, résultats à droite --- */
-.main-section {
-  display: flex;
-  justify-content: flex-start; /* 👈 garde le contenu collé à gauche */
-  align-items: flex-start;
-  gap: 3em;
+/* === SECTIONS GÉNÉRIQUES === */
+.section {
   max-width: 1200px;
-  margin: 0 auto 3em;
-  padding: 0 2em; /* ajoute un peu d’air sur les côtés */
-}
-
-/* Formulaire collé à gauche et taille contrôlée */
-.simulation-form {
-  flex: 0 0 40%; /* 👈 occupe environ 40% du bloc, ne s'étire plus */
-  max-width: 420px;
-  min-width: 300px;
-  background: rgba(25, 25, 35, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
+  margin: 0 auto;
   padding: 2em;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  opacity: 0;
-  transform: translateY(20px);
-  animation: appear 0.8s ease-out forwards;
-}
-
-/* Résultats à droite avec taille fluide */
-.result-section {
-  flex: 1;
-  background: rgba(25, 25, 35, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  padding: 2em;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  transform: translateY(20px);
-  animation: appear 0.8s ease-out forwards;
-}
-
-.charts-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5em;
-  color: var(--accent-light);
-}
-
-.main-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5em;
-  color: var(--accent-light);
-}
-
-/* --- Boutons de comparaison et de prédiction --- */
-.compare-button-container-inside {
-  text-align: center;
-  margin-top: 2em;
   display: flex;
   flex-direction: column;
+  gap: 1.5em;
+}
+
+.text-muted {
+  color: var(--text-gray);
+  font-size: 0.95rem;
+}
+
+.container-center {
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 1em;
+  flex-direction: column;
+  text-align: center;
 }
 
-.compare-button,
-.predict-button {
-  display: inline-block;
-  padding: 0.9em 2em;
-  font-weight: 600;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
-  transition: all 0.3s ease;
-  width: 80%;
-  max-width: 350px;
+/* === ANIMATIONS === */
+@keyframes appear {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Style spécifique pour le bouton de comparaison */
-.compare-button {
-  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+.fade-in {
+  animation: appear 0.6s ease-out forwards;
 }
 
-.compare-button:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, var(--accent-light), #948fff);
-  box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  h1 { font-size: 1.9rem; }
+  .section { padding: 1.5em; }
+  button, .btn { width: 90%; }
 }
-
-/* Style spécifique pour le bouton de prédiction */
-.predict-button {
-  background: linear-gradient(135deg, #2ecc71, #5be37a);
-}
-
-.predict-button:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #5be37a, #89f7af);
-  box-shadow: 0 4px 12px rgba(91, 227, 122, 0.4);
-}
-
-

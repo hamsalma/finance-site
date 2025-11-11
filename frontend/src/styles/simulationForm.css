@@ -1,0 +1,328 @@
+/* === PAGE SIMULATION === */
+.simulate-page {
+  font-family: "Inter", system-ui, sans-serif;
+  background: radial-gradient(circle at top left, #0b0b10, #111118 80%);
+  color: #f5f5f5;
+  min-height: 100vh;
+  padding-bottom: 5em;
+}
+
+/* === TITRE === */
+.simulate-page h1 {
+  text-align: center;
+  font-size: 2.3rem;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  background: linear-gradient(90deg, #a79aff, #7c6cff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* === SECTION PRINCIPALE === */
+.simulate-page .main-section {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 2em;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2em;
+}
+
+/* === FORMULAIRE === */
+.simulate-page .simulation-form {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: rgba(25, 25, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  padding: 2em;
+  border-radius: 18px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transition: all 0.3s ease;
+}
+
+.simulate-page .simulation-form:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(124, 108, 255, 0.25);
+}
+
+.simulate-page .simulation-form h2 {
+  text-align: center;
+  color: #bcbaff;
+  margin-bottom: 1.3em;
+}
+
+.simulate-page .simulation-form label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1em;
+  font-weight: 500;
+  color: #ccc;
+}
+
+.simulate-page .simulation-form input,
+.simulate-page .simulation-form select {
+  margin-top: 0.4em;
+  padding: 0.9em 1em;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(40, 40, 55, 0.9);
+  color: #fff;
+  font-size: 0.95rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.simulate-page .simulation-form input:focus,
+.simulate-page .simulation-form select:focus {
+  border-color: #7c6cff;
+  box-shadow: 0 0 6px rgba(123, 108, 255, 0.4);
+  outline: none;
+}
+
+/* === BOUTON DE FORMULAIRE === */
+.simulate-page .simulation-form button {
+  margin-top: 1em;
+  width: 100%;
+  padding: 1.1em;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  background: linear-gradient(135deg, #7c6cff, #a79aff);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
+}
+
+.simulate-page .simulation-form button:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #a79aff, #7c6cff);
+}
+
+/* === RÉSULTATS === */
+.simulate-page .result-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: rgba(25, 25, 35, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 2em;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+  height: 100%;
+}
+
+.simulate-page .result-section h2 {
+  text-align: center;
+  color: #bcbaff;
+  margin-bottom: 1.5em;
+  font-size: 1.4rem;
+}
+
+/* === CARTES === */
+.simulate-page .cards-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5em;
+  justify-items: center;
+  width: 100%;
+}
+
+.simulate-page .result-card {
+  background: rgba(35, 35, 55, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.4em;
+  text-align: center;
+  width: 90%;
+  max-width: 320px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.simulate-page .result-card:hover {
+  transform: translateY(-5px);
+  background: rgba(45, 45, 70, 0.95);
+  box-shadow: 0 4px 16px rgba(123, 108, 255, 0.3);
+}
+
+.simulate-page .result-card h3 {
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 0.4em;
+  font-size: 0.9rem;
+}
+
+.simulate-page .result-card p {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #a79aff;
+  margin: 0;
+}
+
+/* === BOUTONS COMPARAISON / PREDICTION === */
+.simulate-page .compare-button-container-inside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2em;
+  gap: 0.8em;
+}
+
+.simulate-page .compare-button,
+.simulate-page .predict-button {
+  width: 90%;
+  max-width: 360px;
+  padding: 1em;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.simulate-page .compare-button {
+  background: linear-gradient(135deg, #7c6cff, #a79aff);
+  box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
+}
+
+.simulate-page .predict-button {
+  background: linear-gradient(135deg, #2ecc71, #5be37a);
+  box-shadow: 0 4px 12px rgba(91, 227, 122, 0.4);
+}
+
+.simulate-page .compare-button:hover,
+.simulate-page .predict-button:hover {
+  transform: translateY(-2px);
+}
+
+/* === ALIGNEMENT DES BLOCS ÉGAUX === */
+.simulate-page .main-section > * {
+  min-height: 620px;
+}
+
+/* === GRAPHIQUES === */
+.simulate-page .charts-section {
+  background: rgba(30, 30, 50, 0.9);
+  border-radius: 16px;
+  padding: 2.5em 2em;
+  margin: 4em auto 3em;
+  width: 92%;
+  max-width: 1150px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.simulate-page .charts-title {
+  text-align: center;
+  color: #bcbaff;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 2em;
+}
+
+.simulate-page .chart-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1.8em;
+  margin-bottom: 3em;
+  flex-wrap: wrap;
+}
+
+/* GRAPH BOX */
+.simulate-page .chart-box {
+  flex: 1 1 68%;
+  background: rgba(35, 35, 55, 0.9);
+  border-radius: 14px;
+  padding: 1.8em;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.simulate-page .chart-box h3 {
+  text-align: center;
+  color: #ffffff;
+  margin-bottom: 1.3em;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Interprétation */
+.simulate-page .chart-interpretation {
+  flex: 1 1 30%;
+  background: rgba(40, 40, 60, 0.9);
+  border-radius: 14px;
+  padding: 1.8em;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.simulate-page .chart-interpretation h4 {
+  color: #bcbaff;
+  margin-bottom: 0.8em;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.simulate-page .chart-interpretation p {
+  color: #ccc;
+  text-align: justify;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* === BOUTON STRATÉGIES === */
+.simulate-page .strategies-button-container {
+  text-align: center;
+  margin-top: 3em;
+}
+
+.simulate-page .strategies-button {
+  padding: 0.9em 2em;
+  background: linear-gradient(135deg, #00e6b8, #7c6cff);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(120, 108, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.simulate-page .strategies-button:hover {
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, #7c6cff, #00e6b8);
+}
+
+
+/* === RESPONSIVE === */
+@media (max-width: 950px) {
+  .simulate-page .main-section {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .simulate-page .simulation-form,
+  .simulate-page .result-section {
+    width: 95%;
+    max-width: 550px;
+    min-height: auto;
+  }
+
+  .simulate-page .cards-container {
+    grid-template-columns: 1fr;
+  }
+}

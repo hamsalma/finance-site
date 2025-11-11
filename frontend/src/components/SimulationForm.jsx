@@ -13,6 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useNavigate, useLocation } from "react-router-dom";
+import "../styles/simulationForm.css";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -32,7 +33,6 @@ export default function SimulationForm() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Pré-remplissage si retour depuis /compare
   useEffect(() => {
     if (location.state?.portefeuille) {
       const p = location.state.portefeuille.inputs || {};
@@ -73,7 +73,6 @@ export default function SimulationForm() {
 
     const duree = dateFin - dateDebut;
 
-    // ✅ On ENVOIE les dates au backend
     const dataToSend = {
       montant_initial: parseFloat(formData.montant_initial),
       contribution: parseFloat(formData.contribution),
@@ -92,7 +91,6 @@ export default function SimulationForm() {
       });
       const data = await res.json();
 
-      // ✅ On RÉINJECTE les dates dans result.inputs au cas où le backend ne les renvoie pas
       const enriched = {
         ...data,
         inputs: {
@@ -112,11 +110,11 @@ export default function SimulationForm() {
   };
 
   return (
-    <div className="app-container">
+    <div className="simulate-page">
       <h1 className="page-title">Simulation de Portefeuille</h1>
 
       {/* --- SECTION PRINCIPALE --- */}
-      <div className="main-section">
+      <div className="main-section align-blocks">
         {/* FORMULAIRE */}
         <form onSubmit={handleSubmit} className="simulation-form">
           <h2>Paramètres du portefeuille</h2>
@@ -267,97 +265,110 @@ export default function SimulationForm() {
 
       {/* --- SECTION GRAPHIQUES --- */}
       {result && (
-        <div className="charts-section">
-          <h2 className="charts-title">Visualisations des performances</h2>
+      <div className="charts-section">
+        <h2 className="charts-title">Visualisations des performances</h2>
 
-          <div className="chart-row">
-            <div className="chart-left">
-              <h3>Courbe de performance cumulée</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={result.resultats.historique}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="periode" stroke="#aaa" />
-                  <YAxis stroke="#aaa" />
-                  <Tooltip />
-                  <Legend verticalAlign="top" height={36} />
-                  <Line
-                    type="monotone"
-                    dataKey="valeur"
-                    stroke="#7b68ee"
-                    strokeWidth={3}
-                    dot={false}
-                    name="Valeur du portefeuille (€)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-right">
-              <h4>📈 Interprétation</h4>
-              <p>
-                Cette courbe montre l’évolution du portefeuille investi en{" "}
-                <strong>{result.inputs.actif || "actif non spécifié"}</strong> dans le temps,
-                en tenant compte des contributions et des frais de gestion. Une pente ascendante
-                indique une bonne croissance du capital.
-              </p>
-            </div>
+        <div className="chart-row">
+          <div className="chart-box">
+            <h3>Courbe de performance cumulée</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={result.resultats.historique}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="periode" stroke="#aaa" />
+                <YAxis stroke="#aaa" />
+                <Tooltip />
+                <Legend verticalAlign="top" height={36} />
+                <Line
+                  type="monotone"
+                  dataKey="valeur"
+                  stroke="#00c8ff"
+                  strokeWidth={3}
+                  dot={false}
+                  name="Valeur du portefeuille (€)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
-          <div className="chart-row">
-            <div className="chart-left">
-              <h3>Histogramme des rendements périodiques</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={result.resultats.rendements}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis
-                    dataKey="periode"
-                    stroke="#aaa"
-                    label={{
-                      value:
-                        result.inputs.frequence === "mensuelle"
-                          ? "Mois"
-                          : result.inputs.frequence === "trimestrielle"
-                          ? "Trimestre"
-                          : result.inputs.frequence === "semestrielle"
-                          ? "Semestre"
-                          : "Année",
-                      position: "insideBottom",
-                      offset: -5,
-                      fill: "#aaa",
-                    }}
-                  />
-                  <YAxis
-                    stroke="#aaa"
-                    domain={["dataMin - 5", "dataMax + 5"]}
-                    allowDataOverflow={true}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <Tooltip
-                    formatter={(value) => `${value.toFixed(2)} %`}
-                    labelFormatter={(label) =>
-                      result.inputs.frequence === "mensuelle"
-                        ? `Mois ${label}`
-                        : `Année ${label}`
-                    }
-                  />
-                  <Legend verticalAlign="top" height={36} />
-                  <Bar dataKey="rendement" fill="#2ecc71" name="Rendement (%)" />
-                  <ReferenceLine y={0} stroke="#ff6b6b" strokeWidth={1.5} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-right">
-              <h4>📊 Interprétation</h4>
-              <p>
-                Cet histogramme illustre la distribution des rendements pour votre portefeuille en{" "}
-                <strong>{result.inputs.actif || "actif non spécifié"}</strong>. Les barres vertes
-                au-dessus de la ligne rouge représentent des gains, celles en dessous des pertes.
-              </p>
-            </div>
+          <div className="chart-interpretation">
+            <h4>📈 Interprétation</h4>
+            <p>
+              Cette courbe montre l’évolution du portefeuille investi en{" "}
+              <strong>{result.inputs.actif || "actif non spécifié"}</strong> dans le temps,
+              en tenant compte des contributions et des frais de gestion.
+              Une pente ascendante indique une bonne croissance du capital.
+            </p>
           </div>
         </div>
+
+        <div className="chart-row">
+          <div className="chart-box">
+            <h3>Histogramme des rendements périodiques</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={result.resultats.rendements}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis
+                  dataKey="periode"
+                  stroke="#aaa"
+                  label={{
+                    value:
+                      result.inputs.frequence === "mensuelle"
+                        ? "Mois"
+                        : result.inputs.frequence === "trimestrielle"
+                        ? "Trimestre"
+                        : result.inputs.frequence === "semestrielle"
+                        ? "Semestre"
+                        : "Année",
+                    position: "insideBottom",
+                    offset: -5,
+                    fill: "#aaa",
+                  }}
+                />
+                <YAxis
+                  stroke="#aaa"
+                  domain={["dataMin - 5", "dataMax + 5"]}
+                  allowDataOverflow={true}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip
+                  formatter={(value) => `${value.toFixed(2)} %`}
+                  labelFormatter={(label) =>
+                    result.inputs.frequence === "mensuelle"
+                      ? `Mois ${label}`
+                      : `Année ${label}`
+                  }
+                />
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="rendement" fill="#3ee38f" name="Rendement (%)" />
+                <ReferenceLine y={0} stroke="#ff6b6b" strokeWidth={1.5} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-interpretation">
+            <h4>📊 Interprétation</h4>
+            <p>
+              Cet histogramme illustre la distribution des rendements pour votre portefeuille en{" "}
+              <strong>{result.inputs.actif || "actif non spécifié"}</strong>.
+              Les barres vertes au-dessus de la ligne rouge représentent des gains,
+              celles en dessous des pertes.
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+            {/* --- BOUTON DE COMPARAISON DES STRATÉGIES --- */}
+      {result && (
+        <div className="strategies-button-container">
+          <button
+            className="strategies-button"
+            onClick={() => navigate("/compare_strategies", { state: { portefeuille: result } })}
+          >
+             Comparer les stratégies d’investissement (DCA vs Lump Sum)
+          </button>
+        </div>
       )}
+
     </div>
   );
 }

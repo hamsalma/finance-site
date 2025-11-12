@@ -96,27 +96,68 @@ def compare_acwi():
     date_fin = int(data.get("date_fin", 2025))
 
     try:
+        print(f"--- Téléchargement ACWI {date_debut}-{date_fin} ---")
         acwi = yf.download("ACWI", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
         if acwi.empty:
+            print("⚠️ Données vides pour ACWI, tentative URTH...")
             acwi = yf.download("URTH", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
+
         if acwi.empty:
             return jsonify({"error": "Aucune donnée disponible pour ACWI/URTH."}), 404
 
+        # 🔹 Nettoyage du DataFrame
+        if isinstance(acwi.columns, pd.MultiIndex):
+            acwi.columns = [c[-1] for c in acwi.columns]
+
         prix = acwi["Close"] if "Close" in acwi.columns else acwi.select_dtypes("number").iloc[:, 0]
-        prix_mensuel = prix.resample("M").last().dropna()
+        prix_mensuel = prix.resample("ME").last().dropna()
+
+        if prix_mensuel.empty:
+            return jsonify({"error": "Pas de données mensuelles valides pour ACWI."}), 404
+
         croissance_acwi = (1 + prix_mensuel.pct_change()).cumprod() * montant_initial
         croissance_acwi = croissance_acwi.dropna()
 
         n = len(croissance_acwi)
         portefeuille = np.linspace(montant_initial, portefeuille_final, n)
+
+        # 🔹 Calculs de rendements (convertis en float)
+        rendement_portefeuille = float(((portefeuille[-1] / portefeuille[0]) - 1) * 100)
+        rendement_acwi = float(((croissance_acwi.iloc[-1] / croissance_acwi.iloc[0]) - 1) * 100)
+        ecart = float(rendement_portefeuille - rendement_acwi)
+
+        # 🔹 Interprétation dynamique
+        if ecart > 1:
+            interpretation = f"Votre portefeuille a surperformé l’indice ACWI IMI de {ecart:.2f}% sur la période {date_debut}-{date_fin}."
+        elif ecart < -1:
+            interpretation = f"Votre portefeuille a sous-performé l’indice ACWI IMI de {abs(ecart):.2f}% sur la période {date_debut}-{date_fin}."
+        else:
+            interpretation = f"La performance de votre portefeuille est similaire à celle de l’indice ACWI IMI (écart de {ecart:.2f}%)."
+
+        # 🔹 Données pour graphique
         comparaison = [
-            {"date": idx.strftime("%Y-%m"), "portefeuille": round(float(portefeuille[i]), 2), "acwi": round(float(croissance_acwi.iloc[i]), 2)}
+            {
+                "date": idx.strftime("%Y-%m"),
+                "portefeuille": round(float(portefeuille[i]), 2),
+                "acwi": round(float(croissance_acwi.iloc[i].item() if hasattr(croissance_acwi.iloc[i], "item") else croissance_acwi.iloc[i]), 2)
+            }
             for i, idx in enumerate(croissance_acwi.index)
         ]
-        return jsonify({"comparaison": comparaison})
+
+        print(f"✅ Données ACWI prêtes : {len(comparaison)} points")
+
+        return jsonify({
+            "comparaison": comparaison,
+            "rendement_portefeuille": round(rendement_portefeuille, 2),
+            "rendement_acwi": round(rendement_acwi, 2),
+            "ecart": round(ecart, 2),
+            "interpretation": interpretation
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print("\n❌ ERREUR /compare_acwi :", e)
+        traceback.print_exc()
+        return jsonify({"error": f"Erreur interne : {str(e)}"}), 500
 
 # ────────────────────────────────
 #  3. PRÉDICTION DES RENDEMENTS FUTURS
@@ -125,7 +166,7 @@ def compare_acwi():
 def predict_returns():
     data = request.get_json()
     actif_type = data.get("actif", "defaut").lower()
-    ticker = {"actions": "SPY", "obligations": "BND", "etf": "ACWI"}.get(actif_type, "ACWI")
+    ticker = {"actions": "EWQ", "obligations": "EUNA.L", "etf": "ACWI"}.get(actif_type, "ACWI")
     date_debut, date_fin = int(data.get("date_debut", 2015)), int(data.get("date_fin", 2025))
 
     try:
@@ -174,7 +215,7 @@ def compare_strategies():
     data = request.get_json()
     montant_initial = float(data.get("montant_initial", 12000))
     date_debut, date_fin = int(data.get("date_debut", 2015)), int(data.get("date_fin", 2025))
-    ticker = {"actions": "SPY", "obligations": "BND", "etf": "ACWI"}.get(data.get("actif", "etf").lower(), "ACWI")
+    ticker = {"actions": "EWQ", "obligations": "EUNA.L", "etf": "ACWI"}.get(data.get("actif", "etf").lower(), "ACWI")
 
     try:
         df = yf.download(ticker, start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)

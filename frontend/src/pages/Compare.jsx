@@ -19,7 +19,7 @@ export default function Compare() {
   const location = useLocation();
   const portefeuille = location.state?.portefeuille;
 
-  const [data, setData] = useState([]);
+  const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function Compare() {
         });
 
         const result = await res.json();
-        if (result.comparaison) setData(result.comparaison);
+        if (result.comparaison) setData(result);
         else alert("Aucune donnée à afficher.");
       } catch (err) {
         console.error(err);
@@ -63,7 +63,7 @@ export default function Compare() {
 
       <div className="compare-chart">
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
+          <LineChart data={data.comparaison}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
             <XAxis dataKey="date" stroke="#aaa" />
             <YAxis stroke="#aaa" />
@@ -89,10 +89,34 @@ export default function Compare() {
         </ResponsiveContainer>
       </div>
 
+      {/* --- Interprétation dynamique --- */}
+      {data.interpretation && (
+        <div className="compare-interpretation">
+          <h4>Interprétation automatique</h4>
+          <p>{data.interpretation}</p>
+          <div className="compare-stats">
+            <p>
+              <strong>Rendement portefeuille :</strong>{" "}
+              {data.rendement_portefeuille}%
+            </p>
+            <p>
+              <strong>Rendement ACWI IMI :</strong> {data.rendement_acwi}%
+            </p>
+            <p>
+              <strong>Écart :</strong>{" "}
+              {data.ecart > 0 ? "+" : ""}
+              {data.ecart}%
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="compare-footer">
         <button
           className="back-button"
-          onClick={() => navigate("/simulate", { state: { portefeuille } })}
+          onClick={() =>
+            navigate("/simulate", { state: { portefeuille } })
+          }
         >
           ← Retour à la simulation
         </button>

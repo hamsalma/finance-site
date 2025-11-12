@@ -77,3 +77,42 @@
   background: linear-gradient(135deg, var(--accent-light), #948fff);
   box-shadow: 0 4px 12px rgba(123, 108, 255, 0.4);
 }
+
+.compare-interpretation {
+  background: rgba(35, 35, 55, 0.95);
+  border-radius: 16px;
+  padding: 2em 3em;
+  margin: 2em auto 3em;
+  width: 85%;
+  max-width: 950px;
+  color: #e0e0e0;
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  line-height: 1.7;
+}
+
+.compare-interpretation h4 {
+  color: #a79aff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 1em;
+  text-shadow: 0 0 8px rgba(167, 154, 255, 0.4);
+}
+
+.compare-stats {
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  margin-top: 1.2em;
+  color: #cfcfcf;
+  font-size: 0.95rem;
+}
+
+.compare-stats p strong {
+  color: #fff;
+}
+
+.compare-stats p {
+  margin: 0;
+}

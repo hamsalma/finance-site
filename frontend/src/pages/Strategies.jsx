@@ -19,27 +19,33 @@ export default function Strategies() {
   const location = useLocation();
   const portefeuille = location.state?.portefeuille;
 
-  const [strategies, setStrategies] = useState(null);
+  const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStrategies = async () => {
       try {
+        const inputs = portefeuille?.inputs || {};
         const res = await fetch(`${API_URL}/compare_strategies`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            actif: portefeuille?.inputs?.actif || "etf",
-            montant_initial: portefeuille?.inputs?.montant_initial || 10000,
-            date_debut: portefeuille?.inputs?.date_debut || 2015,
-            date_fin: portefeuille?.inputs?.date_fin || new Date().getFullYear(),
+            actif: inputs.actif || "etf",
+            ticker: inputs.ticker || "ACWI",
+            montant_initial: inputs.montant_initial || 10000,
+            date_debut: inputs.date_debut || 2015,
+            date_fin: inputs.date_fin || new Date().getFullYear(),
           }),
         });
         const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setStrategies(data);
+        if (data.error) {
+          alert(`Erreur serveur : ${data.error}`);
+          return;
+        }
+        setPayload(data);
       } catch (err) {
-        alert("Erreur lors du chargement des stratégies : " + err.message);
+        console.error(err);
+        alert("Erreur lors du chargement des stratégies");
       } finally {
         setLoading(false);
       }
@@ -48,14 +54,14 @@ export default function Strategies() {
   }, [portefeuille]);
 
   if (loading) return <p className="loading">Chargement des stratégies...</p>;
-  if (!strategies || !strategies.strategies)
+  if (!payload || !payload.strategies)
     return <p>❌ Aucune donnée disponible.</p>;
 
-  const data = strategies.strategies;
-  const rendement = strategies.rendements;
-  const actif = portefeuille?.inputs?.actif?.toUpperCase() || "ACWI";
+  // 🔹 Données du backend
+  const data = payload.strategies;
+  const rendement = payload.rendements;
 
-  // Trouver la meilleure stratégie
+  // 🔹 Détermination de la meilleure stratégie
   const bestKey = Object.keys(rendement).reduce((a, b) =>
     rendement[a] > rendement[b] ? a : b
   );
@@ -64,38 +70,81 @@ export default function Strategies() {
     Object.values(rendement).reduce((a, b) => a + b, 0) /
     Object.values(rendement).length;
 
-  const interpretation = `
-  La stratégie ${bestKey.replace("_", " ")} ressort comme la plus performante,
-  avec un rendement total de ${bestValue.toFixed(2)} %. 
-  Cela représente environ ${(bestValue - avgValue).toFixed(1)} % de plus que la moyenne des autres méthodes.
-  ${bestKey === "LumpSum"
-    ? "Cette performance élevée indique qu’un investissement immédiat a mieux profité des hausses de marché sur la période."
-    : "L’approche DCA s’est révélée plus stable, limitant les risques de volatilité à court terme."}
-  `;
+  // 🔹 Interprétation textuelle dynamique
+  const interpretation = `La stratégie ${bestKey.replace("_", " ")} ressort comme la plus performante, avec un rendement total de ${bestValue.toFixed(
+    2
+  )} %. Cela représente environ ${(bestValue - avgValue).toFixed(
+    1
+  )} % de plus que la moyenne des autres méthodes. ${
+    bestKey === "LumpSum"
+      ? "Cette performance élevée indique qu’un investissement immédiat a mieux profité des hausses de marché sur la période."
+      : "L’approche DCA s’est révélée plus stable, limitant les risques de volatilité à court terme."
+  }`;
 
   return (
     <div className="strategies-page">
-      <h1>Comparaison des stratégies d’investissement — {actif}</h1>
+      <h1>Comparaison des stratégies — {payload.ticker || "Indice"}</h1>
       <p className="strategies-desc">
-        Cette comparaison illustre la performance de différentes méthodes
-        d’investissement sur la période choisie.
+        Cette analyse compare différentes approches d’investissement :
+        versement unique (Lump Sum) contre investissements réguliers (DCA).
       </p>
 
-      {/* --- GRAPHE PRINCIPAL --- */}
+      {/* --- GRAPHIQUE PRINCIPAL --- */}
       <div className="strategies-chart">
         <h3>Évolution de la valeur du portefeuille (€)</h3>
         <ResponsiveContainer width="100%" height={450}>
-          <LineChart data={data} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+          <LineChart
+            data={data}
+            margin={{ top: 30, right: 30, left: 20, bottom: 20 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis dataKey="date" stroke="#aaa" />
             <YAxis stroke="#aaa" />
-            <Tooltip formatter={(v) => `${v.toFixed(2)} €`} labelFormatter={(v) => `Date : ${v}`} />
+            <Tooltip
+              formatter={(v) => `${v.toFixed(2)} €`}
+              labelFormatter={(v) => `Date : ${v}`}
+            />
             <Legend verticalAlign="top" align="center" height={50} />
-            <Line type="monotone" dataKey="LumpSum" stroke="#ff4c4c" strokeWidth={3} dot={false} name="Lump Sum (unique)" />
-            <Line type="monotone" dataKey="DCA_mensuel" stroke="#7b68ee" strokeWidth={3} dot={false} name="DCA Mensuel" />
-            <Line type="monotone" dataKey="DCA_trimestriel" stroke="#00bfff" strokeWidth={3} dot={false} name="DCA Trimestriel" />
-            <Line type="monotone" dataKey="DCA_semestriel" stroke="#2ecc71" strokeWidth={3} dot={false} name="DCA Semestriel" />
-            <Line type="monotone" dataKey="DCA_annuel" stroke="#f1c40f" strokeWidth={3} dot={false} name="DCA Annuel" />
+            <Line
+              type="monotone"
+              dataKey="LumpSum"
+              stroke="#ff4c4c"
+              strokeWidth={3}
+              dot={false}
+              name="Lump Sum (unique)"
+            />
+            <Line
+              type="monotone"
+              dataKey="DCA_mensuel"
+              stroke="#7b68ee"
+              strokeWidth={3}
+              dot={false}
+              name="DCA Mensuel"
+            />
+            <Line
+              type="monotone"
+              dataKey="DCA_trimestriel"
+              stroke="#00bfff"
+              strokeWidth={3}
+              dot={false}
+              name="DCA Trimestriel"
+            />
+            <Line
+              type="monotone"
+              dataKey="DCA_semestriel"
+              stroke="#2ecc71"
+              strokeWidth={3}
+              dot={false}
+              name="DCA Semestriel"
+            />
+            <Line
+              type="monotone"
+              dataKey="DCA_annuel"
+              stroke="#f1c40f"
+              strokeWidth={3}
+              dot={false}
+              name="DCA Annuel"
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -119,7 +168,7 @@ export default function Strategies() {
 
       {/* --- INTERPRÉTATION AUTOMATIQUE --- */}
       <div className="strategies-interpretation">
-        <h3>Interprétation automatique</h3>
+        <h3>Interprétation </h3>
         <p>{interpretation}</p>
       </div>
 
@@ -127,7 +176,9 @@ export default function Strategies() {
       <div className="strategies-footer">
         <button
           className="back-button"
-          onClick={() => navigate("/simulate", { state: { portefeuille } })}
+          onClick={() =>
+            navigate("/simulate", { state: { portefeuille } })
+          }
         >
           ← Retour à la simulation
         </button>

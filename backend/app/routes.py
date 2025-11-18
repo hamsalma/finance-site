@@ -8,260 +8,486 @@ import traceback
 
 bp = Blueprint("routes", __name__)
 
-# ────────────────────────────────
+# ===============================
+#  UNIVERSE D’INDICES EU / MONDIAUX
+# ===============================
+UNIVERSE = {
+  "actions": {
+    "AIR.PA": "Airbus SE (AIR.PA)",
+    "OR.PA": "L’Oréal (OR.PA)",
+    "MC.PA": "LVMH Moët Hennessy Louis Vuitton (MC.PA)",
+    "BNP.PA": "BNP Paribas (BNP.PA)",
+    "SAN.PA": "Sanofi (SAN.PA)",
+  },
+  "obligations": {
+    "IEAC.L": "iShares Euro Corporate Bond (IEAC.L)",
+    "ECRP.PA": "Amundi Euro Corporate Bond (ECRP.PA)",
+    "IBGX.MI": "iShares € Corp Bond (IBGX.MI)",
+  },
+  "etf": {
+    "ACWI": "iShares MSCI ACWI (ACWI)",
+    "URTH": "iShares MSCI World (URTH)",
+    "IWDA.AS": "iShares Core MSCI World (IWDA.AS)",
+  },
+}
+# ============  UTILITAIRES =============
+def resolve_ticker(category, ticker):
+    category = (category or "etf").lower()
+    if ticker and str(ticker).strip():
+        return ticker.strip()
+    if category in UNIVERSE and UNIVERSE[category]:
+        return list(UNIVERSE[category].keys())[0]
+    return "ACWI"
+
+
+def safe_download(ticker, start, end, auto_adjust=True):
+    try:
+        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=auto_adjust)
+        if df is None or df.empty:
+            return None
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[-1] for c in df.columns]
+        return df
+    except Exception:
+        return None
+
+
+def pick_price(df):
+    if df is None or df.empty:
+        return None
+    if "Adj Close" in df.columns:
+        return df["Adj Close"]
+    if "Close" in df.columns:
+        return df["Close"]
+    num = df.select_dtypes(include="number")
+    return num.iloc[:, 0] if num.shape[1] else None
+
+
+# ===============================
 #  ROUTES DE BASE
-# ────────────────────────────────
+# ===============================
 @bp.route("/")
 def home():
     return "API de simulation de portefeuille — OK"
+
 
 @bp.route("/test")
 def health():
     return jsonify({"status": "ok"})
 
-# ────────────────────────────────
+
+# ===============================
 #  1. SIMULATION DE PORTEFEUILLE
-# ────────────────────────────────
+# ===============================
 @bp.route("/simulate", methods=["POST"])
 def simulate_portfolio():
-    data = request.get_json()
+    data = request.get_json() or {}
+
+    # --------- Entrées ----------
     montant_initial = float(data.get("montant_initial", 0))
     contribution = float(data.get("contribution", 0))
-    frequence = data.get("frequence", "annuelle")
-    duree = int(data.get("duree", 0))
-    actif = data.get("actif", "actions")
+    frequence = data.get("frequence", "mensuelle")
+    duree = int(data.get("duree", 0))  # en années
+    actif = (data.get("actif") or "etf").lower()
+    ticker = resolve_ticker(actif, data.get("ticker"))
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
 
     if montant_initial <= 0 or duree <= 0:
         return jsonify({"error": "Montant initial et durée doivent être positifs."}), 400
 
-    # Paramètres selon le type d’actif
+    # --------- Paramètres de gestion ----------
     frais_gestion_map = {"actions": 0.006, "etf": 0.004, "obligations": 0.002}
     taux_sans_risque_map = {"actions": 0.015, "etf": 0.017, "obligations": 0.02}
-    frais_gestion = frais_gestion_map.get(actif, 0.005)
-    taux_sans_risque = taux_sans_risque_map.get(actif, 0.017)
+    frais_gestion_annuel = frais_gestion_map.get(actif, 0.005)   # ex : 0.006 = 0,6%
+    taux_sans_risque = taux_sans_risque_map.get(actif, 0.017)    # rendement sans risque annuel
 
-    freq_map = {"mensuelle": 12, "trimestrielle": 4, "semestrielle": 2, "annuelle": 1}
-    n = freq_map.get(frequence, 1)
-    periodes = duree * n
+    try:
+        df = safe_download(
+            ticker,
+            f"{date_debut}-01-01",
+            f"{date_fin}-12-31",
+            auto_adjust=True,
+        )
+        if df is None or df.empty:
+            return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
 
-    valeurs = [montant_initial]
-    for _ in range(periodes):
-        nouvelle_valeur = (valeurs[-1] + contribution) * (1 - frais_gestion / n)
-        valeurs.append(nouvelle_valeur)
+        prix = pick_price(df)
+        if prix is None or prix.empty:
+            return jsonify({"error": f"Pas de colonne de prix valide pour {ticker}."}), 404
 
-    portefeuille_final = valeurs[-1]
-    montant_total_investi = montant_initial + (contribution * n * duree)
-    rendements = np.diff(valeurs) / valeurs[:-1]
+        # Fin de mois
+        prix_mensuel = prix.resample("ME").last().dropna()
+        if len(prix_mensuel) < 2:
+            return jsonify({"error": "Historique de prix insuffisant pour simuler le portefeuille."}), 400
 
-    volatilite = np.std(rendements)
-    cagr = (portefeuille_final / montant_initial) ** (1 / duree) - 1
-    rendement_total = ((portefeuille_final - montant_initial) / montant_initial) * 100
-    ratio_sharpe = ((rendement_total / 100) - taux_sans_risque) / volatilite if volatilite > 0 else 0
+        dates = prix_mensuel.index
+        prices = prix_mensuel.values.astype(float)
 
-    historique = [{"periode": i, "valeur": round(v, 2)} for i, v in enumerate(valeurs)]
-    rendements_histogramme = [{"periode": i + 1, "rendement": round(r * 100, 3)} for i, r in enumerate(rendements)]
+        # Fréquence DCA (en mois)
+        step_map = {"mensuelle": 1, "trimestrielle": 3, "semestrielle": 6, "annuelle": 12}
+        step = step_map.get(frequence, 1)
 
-    result = {
-        "inputs": {
-            "montant_initial": montant_initial,
-            "contribution": contribution,
-            "frequence": frequence,
-            "duree": duree,
-            "actif": actif,
-            "date_debut": data.get("date_debut"),
-            "date_fin": data.get("date_fin")
-        },
-        "resultats": {
-            "portefeuille_final_estime": round(portefeuille_final, 2),
-            "montant_total_investi": round(montant_total_investi, 2),
-            "volatilite": round(volatilite, 4),
-            "ratio_sharpe": round(ratio_sharpe, 4),
-            "cagr": round(cagr, 4),
-            "rendement_total": round(rendement_total, 2),
-            "historique": historique,
-            "rendements": rendements_histogramme
-        }
-    }
-    return jsonify(result)
+        units = 0.0
+        valeurs_portefeuille = []
+        montant_total_investi = 0.0
 
-# ────────────────────────────────
-#  2. COMPARAISON AVEC L’INDICE ACWI
-# ────────────────────────────────
+        first_price = prices[0]
+        if first_price <= 0:
+            return jsonify({"error": "Prix initial invalide pour la simulation."}), 400
+
+        units = montant_initial / first_price
+        montant_total_investi += montant_initial
+
+        frais_mensuel = frais_gestion_annuel / 12.0
+
+        for i, (dt, price) in enumerate(zip(dates, prices)):
+            price = float(price)
+            if price <= 0:
+                continue
+
+            if i > 0 and contribution > 0 and (i % step == 0):
+                units += contribution / price
+                montant_total_investi += contribution
+
+            valeur_brute = units * price
+
+            valeur_nette = valeur_brute * (1 - frais_mensuel)
+            units = valeur_nette / price
+
+            valeurs_portefeuille.append(valeur_nette)
+
+        if len(valeurs_portefeuille) < 2:
+            return jsonify({"error": "Simulation trop courte pour calculer les ratios financiers."}), 400
+
+        portefeuille_final = valeurs_portefeuille[-1]
+
+        valeurs_arr = np.array(valeurs_portefeuille)
+        rendements_portefeuille = np.diff(valeurs_arr) / valeurs_arr[:-1]  
+
+        # Volatilité (écart-type des rendements mensuels) annualisée
+        volatilite_mensuelle = float(np.std(rendements_portefeuille, ddof=1))
+        volatilite_annuelle = volatilite_mensuelle * np.sqrt(12) if volatilite_mensuelle > 0 else 0.0
+
+        # Rendement total (%)
+        rendement_total = ((portefeuille_final - montant_total_investi) / montant_total_investi) * 100
+
+        # Durée effective en années (basée sur les dates)
+        duree_effective = (dates[-1] - dates[0]).days / 365.25
+        if duree_effective <= 0:
+            duree_effective = max(duree, 1e-9)
+
+        # CAGR suivant la définition du prof : (Vf / V0)^(1/n) - 1
+        valeur_initiale = valeurs_portefeuille[0]
+        cagr = (portefeuille_final / valeur_initiale) ** (1 / duree_effective) - 1
+
+        # Sharpe = (CAGR - taux sans risque) / volatilité annuelle
+        sharpe = (cagr - taux_sans_risque) / volatilite_annuelle if volatilite_annuelle > 0 else 0.0
+
+        historique = [
+            {"periode": i + 1, "valeur": round(float(v), 2)}
+            for i, v in enumerate(valeurs_portefeuille)
+        ]
+        dates = prix_mensuel.index[1:]
+        rendements_histogramme = [
+                                    {
+                                        "periode": i + 1,
+                                        "date": dates[i].strftime("%Y-%m"),
+                                        "rendement": round(float(r) * 100, 3)
+                                    }
+                                    for i, r in enumerate(rendements_portefeuille)
+                                ]
+        return jsonify({
+            "inputs": {
+                "montant_initial": montant_initial,
+                "contribution": contribution,
+                "frequence": frequence,
+                "duree": duree,
+                "actif": actif,
+                "ticker": ticker,
+                "date_debut": date_debut,
+                "date_fin": date_fin,
+            },
+            "resultats": {
+                "portefeuille_final_estime": round(float(portefeuille_final), 2),
+                "montant_total_investi": round(float(montant_total_investi), 2),
+                "volatilite": round(float(volatilite_annuelle), 4),   # ex: 0.18 → 18 %
+                "ratio_sharpe": round(float(sharpe), 4),
+                "cagr": round(float(cagr), 4),                       # ex: 0.07 → 7 %
+                "rendement_total": round(float(rendement_total), 2), # en %
+                "historique": historique,
+                "rendements": rendements_histogramme,
+            }
+        })
+
+    except Exception as e:
+        print("❌ ERREUR /simulate :", e)
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+# ===============================
+#  2. COMPARAISON AVEC ACWI
+# ===============================
 @bp.route("/compare_acwi", methods=["POST"])
 def compare_acwi():
-    data = request.get_json()
+    data = request.get_json() or {}
+
     montant_initial = float(data.get("montant_initial", 10000))
-    portefeuille_final = float(data.get("portefeuille_final", montant_initial * 1.2))
+    contribution = float(data.get("contribution", 0))
+    frequence = data.get("frequence", "mensuelle")
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
+
+    rendement_portefeuille = float(data.get("rendement_portefeuille", 0.0))
+    hist_sim = data.get("historique_portefeuille") or []
+
+    if not hist_sim:
+        return jsonify({"error": "Aucun historique de portefeuille reçu."}), 400
+
+    try:
+        acwi_df = safe_download("ACWI", f"{date_debut}-01-01", f"{date_fin}-12-31", auto_adjust=True)
+        if acwi_df is None or acwi_df.empty:
+            acwi_df = safe_download("URTH", f"{date_debut}-01-01", f"{date_fin}-12-31", auto_adjust=True)
+        if acwi_df is None or acwi_df.empty:
+            return jsonify({"error": "Aucune donnée ACWI/URTH."}), 404
+
+        prix_acwi = pick_price(acwi_df)
+        prix_acwi_m = prix_acwi.resample("ME").last().dropna()
+        if len(prix_acwi_m) < 2:
+            return jsonify({"error": "Historique ACWI insuffisant."}), 400
+
+        n_port = len(hist_sim)
+        n_acwi = len(prix_acwi_m)
+
+        n = min(n_port, n_acwi)
+        if n < 2:
+            return jsonify({"error": "Pas assez de données communes pour comparer."}), 400
+
+        acwi_prices = prix_acwi_m.iloc[-n:]
+        dates = acwi_prices.index
+        hist_vals = [float(h["valeur"]) for h in hist_sim][-n:]
+
+        step_map = {"mensuelle": 1, "trimestrielle": 3, "semestrielle": 6, "annuelle": 12}
+        step = step_map.get(frequence, 1)
+
+        units_acwi = 0.0
+        valeurs_acwi = []
+        montant_total_investi_acwi = 0.0
+
+        prices = acwi_prices.values.astype(float)
+
+        first_price = prices[0]
+        if first_price <= 0:
+            return jsonify({"error": "Prix ACWI initial invalide."}), 400
+
+        units_acwi = montant_initial / first_price
+        montant_total_investi_acwi += montant_initial
+
+        for i, price in enumerate(prices):
+            price = float(price)
+            if price <= 0:
+                continue
+
+            if i > 0 and contribution > 0 and (i % step == 0):
+                units_acwi += contribution / price
+                montant_total_investi_acwi += contribution
+
+            valeur = units_acwi * price  # pas de frais sur l'indice
+            valeurs_acwi.append(float(valeur))
+
+        if len(valeurs_acwi) < 2:
+            return jsonify({"error": "Simulation ACWI trop courte."}), 400
+
+        acwi_final = valeurs_acwi[-1]
+
+        rendement_acwi = (
+            (acwi_final - montant_total_investi_acwi) / montant_total_investi_acwi * 100
+            if montant_total_investi_acwi > 0 else 0.0
+        )
+
+        ecart = rendement_portefeuille - rendement_acwi
+
+        if ecart > 1:
+            interpretation = f"Votre portefeuille a surperformé l’indice ACWI IMI de {ecart:.2f} %."
+        elif ecart < -1:
+            interpretation = f"Votre portefeuille a sous-performé l’indice ACWI IMI de {abs(ecart):.2f} %."
+        else:
+            interpretation = f"La performance de votre portefeuille est proche de celle de l’indice ACWI IMI."
+
+        comparaison = [
+            {
+                "date": dates[i].strftime("%Y-%m"),
+                "portefeuille": round(hist_vals[i], 2),
+                "acwi": round(valeurs_acwi[i], 2),
+            }
+            for i in range(n)
+        ]
+
+        return jsonify({
+            "comparaison": comparaison,
+            "rendement_portefeuille": round(float(rendement_portefeuille), 2),
+            "rendement_acwi": round(float(rendement_acwi), 2),
+            "ecart": round(float(ecart), 2),
+            "interpretation": interpretation,
+        })
+
+    except Exception as e:
+        print("❌ ERREUR /compare_acwi :", e)
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    
+# ===============================
+#  3. PRÉDICTION DES RENDEMENTS
+# ===============================
+@bp.route("/predict_returns", methods=["POST"])
+def predict_returns():
+    data = request.get_json() or {}
+    actif = (data.get("actif") or "etf").lower()
+    ticker = resolve_ticker(actif, data.get("ticker"))
     date_debut = int(data.get("date_debut", 2015))
     date_fin = int(data.get("date_fin", 2025))
 
     try:
-        print(f"--- Téléchargement ACWI {date_debut}-{date_fin} ---")
-        acwi = yf.download("ACWI", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
-        if acwi.empty:
-            print("⚠️ Données vides pour ACWI, tentative URTH...")
-            acwi = yf.download("URTH", start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
+        df = safe_download(
+            ticker,
+            f"{date_debut}-01-01",
+            f"{date_fin}-12-31",
+            auto_adjust=True,
+        )
+        if df is None or df.empty:
+            return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
 
-        if acwi.empty:
-            return jsonify({"error": "Aucune donnée disponible pour ACWI/URTH."}), 404
+        prix = pick_price(df)
+        if prix is None or prix.empty:
+            return jsonify({"error": f"Pas de colonne de prix valide pour {ticker}."}), 404
 
-        # 🔹 Nettoyage du DataFrame
-        if isinstance(acwi.columns, pd.MultiIndex):
-            acwi.columns = [c[-1] for c in acwi.columns]
+        prix_trimestriel = prix.resample("QE").last().dropna()
+        rendements = prix_trimestriel.pct_change().dropna() * 100
 
-        prix = acwi["Close"] if "Close" in acwi.columns else acwi.select_dtypes("number").iloc[:, 0]
-        prix_mensuel = prix.resample("ME").last().dropna()
+        if len(rendements) < 10:
+            return jsonify({"error": "Série trop courte pour effectuer une régression."}), 400
 
-        if prix_mensuel.empty:
-            return jsonify({"error": "Pas de données mensuelles valides pour ACWI."}), 404
-
-        croissance_acwi = (1 + prix_mensuel.pct_change()).cumprod() * montant_initial
-        croissance_acwi = croissance_acwi.dropna()
-
-        n = len(croissance_acwi)
-        portefeuille = np.linspace(montant_initial, portefeuille_final, n)
-
-        # 🔹 Calculs de rendements (convertis en float)
-        rendement_portefeuille = float(((portefeuille[-1] / portefeuille[0]) - 1) * 100)
-        rendement_acwi = float(((croissance_acwi.iloc[-1] / croissance_acwi.iloc[0]) - 1) * 100)
-        ecart = float(rendement_portefeuille - rendement_acwi)
-
-        # 🔹 Interprétation dynamique
-        if ecart > 1:
-            interpretation = f"Votre portefeuille a surperformé l’indice ACWI IMI de {ecart:.2f}% sur la période {date_debut}-{date_fin}."
-        elif ecart < -1:
-            interpretation = f"Votre portefeuille a sous-performé l’indice ACWI IMI de {abs(ecart):.2f}% sur la période {date_debut}-{date_fin}."
-        else:
-            interpretation = f"La performance de votre portefeuille est similaire à celle de l’indice ACWI IMI (écart de {ecart:.2f}%)."
-
-        # 🔹 Données pour graphique
-        comparaison = [
-            {
-                "date": idx.strftime("%Y-%m"),
-                "portefeuille": round(float(portefeuille[i]), 2),
-                "acwi": round(float(croissance_acwi.iloc[i].item() if hasattr(croissance_acwi.iloc[i], "item") else croissance_acwi.iloc[i]), 2)
-            }
-            for i, idx in enumerate(croissance_acwi.index)
-        ]
-
-        print(f"✅ Données ACWI prêtes : {len(comparaison)} points")
-
-        return jsonify({
-            "comparaison": comparaison,
-            "rendement_portefeuille": round(rendement_portefeuille, 2),
-            "rendement_acwi": round(rendement_acwi, 2),
-            "ecart": round(ecart, 2),
-            "interpretation": interpretation
-        })
-
-    except Exception as e:
-        print("\n❌ ERREUR /compare_acwi :", e)
-        traceback.print_exc()
-        return jsonify({"error": f"Erreur interne : {str(e)}"}), 500
-
-# ────────────────────────────────
-#  3. PRÉDICTION DES RENDEMENTS FUTURS
-# ────────────────────────────────
-@bp.route("/predict_returns", methods=["POST"])
-def predict_returns():
-    data = request.get_json()
-    actif_type = data.get("actif", "defaut").lower()
-    ticker = {"actions": "EWQ", "obligations": "EUNA.L", "etf": "ACWI"}.get(actif_type, "ACWI")
-    date_debut, date_fin = int(data.get("date_debut", 2015)), int(data.get("date_fin", 2025))
-
-    try:
-        df = yf.download(ticker, start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False)
-        if isinstance(df.columns, pd.MultiIndex): df.columns = [c[-1] for c in df.columns]
-        prix = df.get("Adj Close", df.get("Close", df.select_dtypes("number").iloc[:, 0]))
-        if prix.empty: return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
-
-        df["Return"] = prix.pct_change() * 100
-        df = df.dropna().reset_index()
-        X, y = np.arange(len(df)).reshape(-1, 1), df["Return"].values.reshape(-1, 1)
+        X = np.arange(len(rendements)).reshape(-1, 1)
+        y = rendements.values.astype(float)
 
         model = LinearRegression().fit(X, y)
-        trend, beta = model.predict(X).flatten(), float(model.coef_[0])
-        future_pred = model.predict(np.arange(len(df), len(df) + 12).reshape(-1, 1)).flatten()
+        trend = model.predict(X)
+        beta = float(model.coef_[0])  
 
-        residuals = y.flatten() - trend
-        std = np.std(residuals)
-        conf = 0.95
-        stderr = std / np.sqrt(len(df))
-        t_crit = stats.t.ppf((1 + conf) / 2, df=len(df) - 1)
+        future_X = np.arange(len(rendements), len(rendements) + 12).reshape(-1, 1)
+        future_pred = model.predict(future_X)
+
+        residuals = y - trend
+        std_resid = float(np.std(residuals, ddof=1))  
+
+        mean_hist = float(np.mean(rendements))
+        mean_future = float(np.mean(future_pred))
+
+        n = len(rendements)
+        stderr = std_resid / np.sqrt(n)
+        t_crit = stats.t.ppf(0.975, df=max(n - 1, 1))
         margin = t_crit * stderr
 
-        hist_data = [{"periode": i + 1, "rendement": float(df["Return"].iloc[i]), "tendance": float(trend[i])} for i in range(len(df))]
-        future_data = [{"periode": len(df) + i + 1, "prediction": float(future_pred[i])} for i in range(len(future_pred))]
+        borne_inf = mean_future - margin
+        borne_sup = mean_future + margin
+        hist_data = [
+                    {
+                        "periode": i + 1,
+                        "rendement": float(rendements.iloc[i]),
+                        "tendance": float(trend[i]),
+                    }
+                    for i in range(len(rendements))
+                    ]
+        futur_data = [
+            {"periode": len(rendements) + i + 1, "prediction": float(v)}
+            for i, v in enumerate(future_pred)
+        ]
 
         return jsonify({
-            "actif": ticker,
+            "actif": actif,
+            "ticker": ticker,
             "beta": beta,
             "historique": hist_data,
-            "futur": future_data,
-            "rendement_moyen": round(np.mean(df["Return"]), 5),
-            "rendement_prevu_moyen": round(np.mean(future_pred), 5),
-            "ecarts_types": {"σ": round(std / 100, 5), "2σ": round(2 * std / 100, 5), "3σ": round(3 * std / 100, 5)},
-            "intervalle_confiance": {"niveau": f"{int(conf * 100)}%", "borne_inf": round(np.mean(future_pred) - margin, 4), "borne_sup": round(np.mean(future_pred) + margin, 4)}
+            "futur": futur_data,
+            "rendement_moyen": round(mean_hist, 4),             # en %
+            "rendement_prevu_moyen": round(mean_future, 4),     # en %
+            "ecarts_types": {
+                "σ": round(std_resid, 4),
+                "2σ": round(2 * std_resid, 4),
+                "3σ": round(3 * std_resid, 4),
+            },
+            "intervalle_confiance": {
+                "niveau": "95%",
+                "borne_inf": round(borne_inf, 4),
+                "borne_sup": round(borne_sup, 4),
+            },
         })
 
     except Exception as e:
+        print("❌ ERREUR /predict_returns :", e)
+        import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# ────────────────────────────────
+# ===============================
 #  4. COMPARAISON DCA VS LUMP SUM
-# ────────────────────────────────
+# ===============================
 @bp.route("/compare_strategies", methods=["POST"])
 def compare_strategies():
-    data = request.get_json()
+    data = request.get_json() or {}
+    actif = (data.get("actif") or "etf").lower()
+    ticker = resolve_ticker(actif, data.get("ticker"))
     montant_initial = float(data.get("montant_initial", 12000))
-    date_debut, date_fin = int(data.get("date_debut", 2015)), int(data.get("date_fin", 2025))
-    ticker = {"actions": "EWQ", "obligations": "EUNA.L", "etf": "ACWI"}.get(data.get("actif", "etf").lower(), "ACWI")
+    date_debut = int(data.get("date_debut", 2015))
+    date_fin = int(data.get("date_fin", 2025))
 
     try:
-        df = yf.download(ticker, start=f"{date_debut}-01-01", end=f"{date_fin}-12-31", progress=False, auto_adjust=True)
-        if df.empty: return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
+        df = safe_download(ticker, f"{date_debut}-01-01", f"{date_fin}-12-31", auto_adjust=True)
+        if df is None or df.empty:
+            return jsonify({"error": f"Aucune donnée trouvée pour {ticker}."}), 404
+        prix = pick_price(df)
+        prix_mensuel = prix.resample("ME").last().dropna()
 
-        prix_mensuel = df["Close"].resample("ME").last().dropna()
         n = len(prix_mensuel)
         contribution = montant_initial / n
 
+        # Lump sum
         lump_sum = montant_initial * (prix_mensuel / prix_mensuel.iloc[0])
+
+        # DCA mensuel
         valeur_dca = (contribution / prix_mensuel).cumsum() * prix_mensuel
+
+        # DCA trimestriel / semestriel / annuel
         valeur_trim = ((montant_initial / len(prix_mensuel[::3])) / prix_mensuel[::3]).cumsum().reindex(prix_mensuel.index, method="ffill") * prix_mensuel
         valeur_sem = ((montant_initial / len(prix_mensuel[::6])) / prix_mensuel[::6]).cumsum().reindex(prix_mensuel.index, method="ffill") * prix_mensuel
         valeur_ann = ((montant_initial / len(prix_mensuel[::12])) / prix_mensuel[::12]).cumsum().reindex(prix_mensuel.index, method="ffill") * prix_mensuel
 
         data_points = [
-        {
-        "date": date.strftime("%Y-%m"),
-        "LumpSum": round(float(lump_sum.iloc[i]), 2),
-        "DCA_mensuel": round(float(valeur_dca.iloc[i]), 2),
-        "DCA_trimestriel": round(float(valeur_trim.iloc[i]), 2),
-        "DCA_semestriel": round(float(valeur_sem.iloc[i]), 2),
-        "DCA_annuel": round(float(valeur_ann.iloc[i]), 2),
-        }
-        for i, date in enumerate(prix_mensuel.index)
-    ]
-
+            {
+                "date": d.strftime("%Y-%m"),
+                "LumpSum": round(float(lump_sum.iloc[i]), 2),
+                "DCA_mensuel": round(float(valeur_dca.iloc[i]), 2),
+                "DCA_trimestriel": round(float(valeur_trim.iloc[i]), 2),
+                "DCA_semestriel": round(float(valeur_sem.iloc[i]), 2),
+                "DCA_annuel": round(float(valeur_ann.iloc[i]), 2),
+            }
+            for i, d in enumerate(prix_mensuel.index)
+        ]
 
         rendements = {
-            k: float(round((v.iloc[-1] / montant_initial - 1) * 100, 2))
-            for k, v in {
-                "LumpSum": lump_sum,
-                "DCA_mensuel": valeur_dca,
-                "DCA_trimestriel": valeur_trim,
-                "DCA_semestriel": valeur_sem,
-                "DCA_annuel": valeur_ann,
-            }.items()
+            "LumpSum": round(float(lump_sum.iloc[-1] / montant_initial - 1) * 100, 2),
+            "DCA_mensuel": round(float(valeur_dca.iloc[-1] / montant_initial - 1) * 100, 2),
+            "DCA_trimestriel": round(float(valeur_trim.iloc[-1] / montant_initial - 1) * 100, 2),
+            "DCA_semestriel": round(float(valeur_sem.iloc[-1] / montant_initial - 1) * 100, 2),
+            "DCA_annuel": round(float(valeur_ann.iloc[-1] / montant_initial - 1) * 100, 2),
         }
 
         return jsonify({
-            "strategies": [dict(point) for point in data_points],
-            "rendements": {k: float(v) for k, v in rendements.items()}
+            "ticker": ticker,
+            "strategies": data_points,
+            "rendements": rendements,
         })
-
     except Exception as e:
-        print("\n❌ ERREUR /compare_strategies :", e)
+        print("❌ ERREUR /compare_strategies :", e)
         traceback.print_exc()
-        return jsonify({"error": f"Erreur interne : {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 

@@ -142,7 +142,7 @@
   text-align: center;
   width: 80%;
   max-width: 320px;
-  height: 100px;
+  height: 125px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -157,9 +157,9 @@
 
 .simulate-page .result-card h3 {
   color: #fff;
-  font-weight: 600;
-  margin-bottom: 0.4em;
-  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.9em;
+  font-size: 1rem;
 }
 
 .simulate-page .result-card p {
@@ -255,6 +255,56 @@
   margin-bottom: 1.3em;
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+/* BEST / WORST SECTION */
+.best-worst-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5em;
+  gap: 2em;
+}
+
+.best-section, .worst-section {
+  flex: 1;
+  padding: 1em 1.4em;
+  border-radius: 12px;
+}
+
+.best-section {
+  background: rgba(0, 255, 120, 0.12);
+  border-left: 4px solid #3ee38f;
+}
+
+.worst-section {
+  background: rgba(255, 0, 0, 0.12);
+  border-left: 4px solid #ff6b6b;
+}
+
+.best-section h4,
+.worst-section h4 {
+  font-size: 1.1rem;
+  margin-bottom: 0.8em;
+  color: #fff;
+  font-weight: 600;
+}
+
+.bw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.bw-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: #ddd;
+}
+
+.bw-item strong {
+  font-weight: 700;
+  color: #fff;
 }
 
 /* Interprétation */

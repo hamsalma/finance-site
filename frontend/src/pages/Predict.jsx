@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Tooltip,
   Legend,
   ReferenceLine,
   ResponsiveContainer,
@@ -26,16 +27,18 @@ export default function Predict() {
   useEffect(() => {
     const fetchPrediction = async () => {
       try {
+        const inputs = portefeuille?.inputs || {};
         const res = await fetch(`${API_URL}/predict_returns`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            actif: portefeuille?.inputs?.actif || "ACWI",
-            date_debut: portefeuille?.inputs?.date_debut || 2015,
-            date_fin: portefeuille?.inputs?.date_fin || 2025,
-            montant_initial: portefeuille?.inputs?.montant_initial || 10000,
+            actif: inputs.actif || "etf",
+            ticker: inputs.ticker || "ACWI",
+            date_debut: inputs.date_debut || 2015,
+            date_fin: inputs.date_fin || new Date().getFullYear(),
           }),
         });
+
         const data = await res.json();
         setPrediction(data);
       } catch (err) {
@@ -49,31 +52,32 @@ export default function Predict() {
   }, [portefeuille]);
 
   if (loading) return <p className="loading">Chargement des prédictions...</p>;
-  if (!prediction || prediction.error)
-    return <p>❌ Aucune donnée à afficher.</p>;
+  if (!prediction || prediction.error) return <p>❌ Aucune donnée à afficher.</p>;
 
-  // --- Extraction des données ---
   const historique = prediction.historique || [];
-  const sigma = prediction.ecarts_types?.["σ"] || 0;
-  const sigma2 = prediction.ecarts_types?.["2σ"] || 0;
-  const sigma3 = prediction.ecarts_types?.["3σ"] || 0;
-  const mean = (prediction.rendement_moyen || 0) * 100;
-  const predMean = (prediction.rendement_prevu_moyen || 0) * 100;
+
+  // --- Récupération des écarts-types (déjà en %) ---
+  const sigma = prediction.ecarts_types?.["σ"] ?? 0;
+  const sigma2 = prediction.ecarts_types?.["2σ"] ?? 0;
+  const sigma3 = prediction.ecarts_types?.["3σ"] ?? 0;
+
+  const mean = prediction.rendement_moyen || 0;
+  const predMean = prediction.rendement_prevu_moyen || 0;
+
   const beta = prediction.beta || 0;
 
   const borneInf = prediction.intervalle_confiance?.borne_inf?.toFixed(2);
   const borneSup = prediction.intervalle_confiance?.borne_sup?.toFixed(2);
   const niveauConfiance = prediction.intervalle_confiance?.niveau || "95%";
 
-  // --- Tendance linéaire ---
+  // --- Ligne de régression ---
   const tendance = historique.map((d) => ({
     periode: d.periode,
     valeur: d.tendance,
   }));
 
-  // --- Interprétation dynamique ---
+  // --- Texte interprétation ---
   const interpretation = (() => {
-    const volatilite = (sigma * 100).toFixed(2);
     const tendanceDirection =
       beta > 0
         ? "une tendance haussière 📈"
@@ -88,10 +92,12 @@ export default function Predict() {
         ? "un affaiblissement probable des performances"
         : "une stabilité prévue du rendement moyen futur";
 
-    return `Le modèle linéaire montre ${tendanceDirection}, avec une volatilité estimée à ${volatilite} % 
-et un rendement moyen prévu de ${predMean.toFixed(3)} %. 
-Selon l'analyse statistique, le rendement futur moyen a un intervalle de confiance à ${niveauConfiance}
-compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`;
+    return `Le modèle linéaire montre ${tendanceDirection}, avec une volatilité σ ≈ ${sigma.toFixed(
+      2
+    )}% 
+    et un rendement futur moyen estimé à ${predMean.toFixed(
+      3
+    )} %. L’intervalle de confiance à ${niveauConfiance} est compris entre ${borneInf}% et ${borneSup}%.`;
   })();
 
   return (
@@ -102,7 +108,7 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
         droite de régression et bandes d’incertitude à ±σ, ±2σ, ±3σ.
       </p>
 
-      {/* --- GRAPHIQUE --- */}
+      {/* --- GRAPHE --- */}
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={480}>
           <ScatterChart margin={{ top: 20, right: 40, bottom: 40, left: 40 }}>
@@ -112,7 +118,7 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
               dataKey="periode"
               stroke="#ccc"
               label={{
-                value: "Périodes (jours ou mois)",
+                value: "Périodes trimestrielles",
                 position: "insideBottom",
                 offset: -5,
                 fill: "#aaa",
@@ -124,7 +130,7 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
               stroke="#ccc"
               domain={["auto", "auto"]}
               label={{
-                value: "Performance cumulée (%)",
+                value: "Performance (%)",
                 angle: -90,
                 position: "insideLeft",
                 fill: "#aaa",
@@ -152,45 +158,16 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
               name="Régression linéaire"
             />
 
-            {/* --- Bandes d’écart-type --- */}
-            <ReferenceLine
-              y={sigma * 100}
-              stroke="#00bfff"
-              strokeDasharray="4 4"
-              strokeWidth={1.5}
-            />
-            <ReferenceLine
-              y={-sigma * 100}
-              stroke="#00bfff"
-              strokeDasharray="4 4"
-              strokeWidth={1.5}
-            />
-            <ReferenceLine
-              y={sigma2 * 100}
-              stroke="#9370db"
-              strokeDasharray="5 5"
-              strokeWidth={1.5}
-            />
-            <ReferenceLine
-              y={-sigma2 * 100}
-              stroke="#9370db"
-              strokeDasharray="5 5"
-              strokeWidth={1.5}
-            />
-            <ReferenceLine
-              y={sigma3 * 100}
-              stroke="#ff6b6b"
-              strokeDasharray="6 6"
-              strokeWidth={1.5}
-            />
-            <ReferenceLine
-              y={-sigma3 * 100}
-              stroke="#ff6b6b"
-              strokeDasharray="6 6"
-              strokeWidth={1.5}
-            />
+            {/* --- Bandes σ / 2σ / 3σ (déjà en %) --- */}
+            <ReferenceLine y={sigma} stroke="#00bfff" strokeDasharray="4 4" />
+            <ReferenceLine y={-sigma} stroke="#00bfff" strokeDasharray="4 4" />
 
-            {/* --- Légende --- */}
+            <ReferenceLine y={sigma2} stroke="#9370db" strokeDasharray="5 5" />
+            <ReferenceLine y={-sigma2} stroke="#9370db" strokeDasharray="5 5" />
+
+            <ReferenceLine y={sigma3} stroke="#ff6b6b" strokeDasharray="6 6" />
+            <ReferenceLine y={-sigma3} stroke="#ff6b6b" strokeDasharray="6 6" />
+
             <Legend
               verticalAlign="top"
               align="center"
@@ -210,7 +187,7 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
         </ResponsiveContainer>
       </div>
 
-      {/* --- STATISTIQUES DYNAMIQUES --- */}
+      {/* --- STATISTIQUES --- */}
       <div className="stats-section">
         <h3>Résumé statistique</h3>
         <div className="stats-grid">
@@ -224,12 +201,12 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
           </div>
           <div className="stat-card">
             <h4>Écart-type (σ)</h4>
-            <p>{(sigma * 100).toFixed(2)} %</p>
+            <p>{sigma.toFixed(2)} %</p>
           </div>
           <div className="stat-card">
             <h4>Volatilité 2σ / 3σ</h4>
             <p>
-              {`${(sigma2 * 100).toFixed(2)} % / ${(sigma3 * 100).toFixed(2)} %`}
+              {sigma2.toFixed(2)} % / {sigma3.toFixed(2)} %
             </p>
           </div>
         </div>
@@ -237,11 +214,10 @@ compris entre ${borneInf} % et ${borneSup} %, ce qui suggère ${tendanceTexte}.`
 
       {/* --- INTERPRÉTATION --- */}
       <div className="predict-interpretation">
-        <h4>Interprétation automatique</h4>
+        <h4>Interprétation</h4>
         <p>{interpretation}</p>
       </div>
 
-      {/* --- BOUTON --- */}
       <div className="predict-footer">
         <button
           className="back-button"

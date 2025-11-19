@@ -87,7 +87,7 @@ def simulate_portfolio():
     montant_initial = float(data.get("montant_initial", 0))
     contribution = float(data.get("contribution", 0))
     frequence = data.get("frequence", "mensuelle")
-    duree = int(data.get("duree", 0))  # en années
+    duree = int(data.get("duree", 0))
     actif = (data.get("actif") or "etf").lower()
     ticker = resolve_ticker(actif, data.get("ticker"))
     date_debut = int(data.get("date_debut", 2015))
@@ -96,12 +96,14 @@ def simulate_portfolio():
     if montant_initial <= 0 or duree <= 0:
         return jsonify({"error": "Montant initial et durée doivent être positifs."}), 400
 
-    # --------- Paramètres de gestion ----------
+    # --------- Paramètres ----------
     frais_gestion_map = {"actions": 0.006, "etf": 0.004, "obligations": 0.002}
     taux_sans_risque_map = {"actions": 0.015, "etf": 0.017, "obligations": 0.02}
-    frais_gestion_annuel = frais_gestion_map.get(actif, 0.005)   # ex : 0.006 = 0,6%
-    taux_sans_risque = taux_sans_risque_map.get(actif, 0.017)    # rendement sans risque annuel
 
+    frais_gestion_annuel = frais_gestion_map.get(actif, 0.005)
+    taux_sans_risque = taux_sans_risque_map.get(actif, 0.017)
+
+    # --------- Téléchargement ----------
     try:
         df = safe_download(
             ticker,
@@ -116,25 +118,27 @@ def simulate_portfolio():
         if prix is None or prix.empty:
             return jsonify({"error": f"Pas de colonne de prix valide pour {ticker}."}), 404
 
-        # Fin de mois
         prix_mensuel = prix.resample("ME").last().dropna()
         if len(prix_mensuel) < 2:
-            return jsonify({"error": "Historique de prix insuffisant pour simuler le portefeuille."}), 400
+            return jsonify({"error": "Historique insuffisant."}), 400
 
+        # --------- Conversion séries ----------
         dates = prix_mensuel.index
         prices = prix_mensuel.values.astype(float)
 
-        # Fréquence DCA (en mois)
+        # Fréquence DCA
         step_map = {"mensuelle": 1, "trimestrielle": 3, "semestrielle": 6, "annuelle": 12}
         step = step_map.get(frequence, 1)
+        n = step  
 
+        # --------- Simulation portefeuille ----------
         units = 0.0
-        valeurs_portefeuille = []
+        valeurs = []
         montant_total_investi = 0.0
 
         first_price = prices[0]
         if first_price <= 0:
-            return jsonify({"error": "Prix initial invalide pour la simulation."}), 400
+            return jsonify({"error": "Prix initial invalide."}), 400
 
         units = montant_initial / first_price
         montant_total_investi += montant_initial
@@ -151,52 +155,92 @@ def simulate_portfolio():
                 montant_total_investi += contribution
 
             valeur_brute = units * price
-
             valeur_nette = valeur_brute * (1 - frais_mensuel)
+
             units = valeur_nette / price
+            valeurs.append(valeur_nette)
 
-            valeurs_portefeuille.append(valeur_nette)
+        if len(valeurs) < 2:
+            return jsonify({"error": "Simulation trop courte."}), 400
 
-        if len(valeurs_portefeuille) < 2:
-            return jsonify({"error": "Simulation trop courte pour calculer les ratios financiers."}), 400
+        portefeuille_final = valeurs[-1]
 
-        portefeuille_final = valeurs_portefeuille[-1]
+        valeurs_arr = np.array(valeurs)
+        rendements_portefeuille = np.diff(valeurs_arr) / valeurs_arr[:-1]
 
-        valeurs_arr = np.array(valeurs_portefeuille)
-        rendements_portefeuille = np.diff(valeurs_arr) / valeurs_arr[:-1]  
+        # Volatilité annualisée
+        volatilite_m = float(np.std(rendements_portefeuille, ddof=1))
+        volatilite_annuelle = volatilite_m * np.sqrt(12) if volatilite_m > 0 else 0.0
 
-        # Volatilité (écart-type des rendements mensuels) annualisée
-        volatilite_mensuelle = float(np.std(rendements_portefeuille, ddof=1))
-        volatilite_annuelle = volatilite_mensuelle * np.sqrt(12) if volatilite_mensuelle > 0 else 0.0
-
-        # Rendement total (%)
+        # Rendement total
         rendement_total = ((portefeuille_final - montant_total_investi) / montant_total_investi) * 100
 
-        # Durée effective en années (basée sur les dates)
+        # Durée effective
         duree_effective = (dates[-1] - dates[0]).days / 365.25
         if duree_effective <= 0:
             duree_effective = max(duree, 1e-9)
 
-        # CAGR suivant la définition du prof : (Vf / V0)^(1/n) - 1
-        valeur_initiale = valeurs_portefeuille[0]
+        # CAGR vrai
+        valeur_initiale = valeurs[0]
         cagr = (portefeuille_final / valeur_initiale) ** (1 / duree_effective) - 1
 
-        # Sharpe = (CAGR - taux sans risque) / volatilité annuelle
+        # Sharpe
         sharpe = (cagr - taux_sans_risque) / volatilite_annuelle if volatilite_annuelle > 0 else 0.0
 
+        # --------- Historique et rendements ----------
         historique = [
             {"periode": i + 1, "valeur": round(float(v), 2)}
-            for i, v in enumerate(valeurs_portefeuille)
+            for i, v in enumerate(valeurs)
         ]
-        dates = prix_mensuel.index[1:]
+
+        dates_r = prix_mensuel.index[1:]
         rendements_histogramme = [
-                                    {
-                                        "periode": i + 1,
-                                        "date": dates[i].strftime("%Y-%m"),
-                                        "rendement": round(float(r) * 100, 3)
-                                    }
-                                    for i, r in enumerate(rendements_portefeuille)
-                                ]
+            {
+                "periode": i + 1,
+                "date": dates_r[i].strftime("%Y-%m"),
+                "rendement": round(float(r) * 100, 3),
+            }
+            for i, r in enumerate(rendements_portefeuille)
+        ]
+
+        # --------- Sharpe Rolling ----------
+        sharpe_rolling = []
+        if len(rendements_portefeuille) >= 3:
+            window = min(6, len(rendements_portefeuille))
+            rf_period = (1 + taux_sans_risque) ** (1 / 12) - 1
+
+            for i in range(window - 1, len(rendements_portefeuille)):
+                win = rendements_portefeuille[i - window + 1 : i + 1]
+                excess = win - rf_period
+                m = excess.mean()
+                s = excess.std()
+                sharpe_val = float(m / s) if s > 0 else 0.0
+
+                sharpe_rolling.append({
+                    "periode": i + 1,
+                    "valeur": round(sharpe_val, 3)
+                })
+
+        # --------- PER pédagogique ----------
+        per_series = []
+        if len(prix_mensuel) >= 3:
+            pm = prix_mensuel.copy()
+            r_actif = pm.pct_change().dropna()
+
+            prix0 = float(pm.iloc[0])
+            earnings = prix0 / 15.0  
+
+            for i in range(1, len(pm)):
+                ret = float(r_actif.iloc[i - 1])
+                earnings *= (1 + 0.3 * ret)
+                per_val = float(pm.iloc[i]) / earnings if earnings != 0 else 0.0
+
+                per_series.append({
+                    "periode": i,
+                    "date": pm.index[i].strftime("%Y-%m"),
+                    "per": round(per_val, 2),
+                })
+                
         return jsonify({
             "inputs": {
                 "montant_initial": montant_initial,
@@ -211,13 +255,18 @@ def simulate_portfolio():
             "resultats": {
                 "portefeuille_final_estime": round(float(portefeuille_final), 2),
                 "montant_total_investi": round(float(montant_total_investi), 2),
-                "volatilite": round(float(volatilite_annuelle), 4),   # ex: 0.18 → 18 %
+                "volatilite": round(float(volatilite_annuelle), 4),
                 "ratio_sharpe": round(float(sharpe), 4),
-                "cagr": round(float(cagr), 4),                       # ex: 0.07 → 7 %
-                "rendement_total": round(float(rendement_total), 2), # en %
+                "cagr": round(float(cagr), 4),
+                "rendement_total": round(float(rendement_total), 2),
+
                 "historique": historique,
                 "rendements": rendements_histogramme,
-            }
+                "sharpe_rolling": sharpe_rolling,
+                "per_series": per_series,
+
+                "taux_sans_risque": taux_sans_risque,
+            },
         })
 
     except Exception as e:

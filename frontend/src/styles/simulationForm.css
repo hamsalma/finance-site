@@ -7,7 +7,7 @@
   padding-bottom: 5em;
 }
 
-/* === TITRE === */
+/* === TITRE GLOBAL === */
 .simulate-page h1 {
   text-align: center;
   font-size: 2.3rem;
@@ -19,7 +19,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* === SECTION PRINCIPALE === */
+/* === SECTION PRINCIPALE (form + résultats) === */
 .simulate-page .main-section {
   display: flex;
   justify-content: center;
@@ -83,7 +83,7 @@
   outline: none;
 }
 
-/* === BOUTON DE FORMULAIRE === */
+/* === BOUTON DU FORMULAIRE === */
 .simulate-page .simulation-form button {
   margin-top: 1em;
   width: 100%;
@@ -125,7 +125,7 @@
   font-size: 1.4rem;
 }
 
-/* === CARTES === */
+/* === CARTES DE RÉSULTATS === */
 .simulate-page .cards-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -207,12 +207,12 @@
   transform: translateY(-2px);
 }
 
-/* === ALIGNEMENT DES BLOCS ÉGAUX === */
+/* === ALIGNEMENT DES BLOCS === */
 .simulate-page .main-section > * {
   min-height: 620px;
 }
 
-/* === GRAPHIQUES === */
+/* === SECTION GRAPHIQUES (CONTAINER GLOBAL) === */
 .simulate-page .charts-section {
   background: rgba(30, 30, 50, 0.9);
   border-radius: 16px;
@@ -231,6 +231,7 @@
   margin-bottom: 2em;
 }
 
+/* === PREMIERS GRAPHIQUES (courbe + histogramme) === */
 .simulate-page .chart-row {
   display: flex;
   align-items: stretch;
@@ -240,7 +241,6 @@
   flex-wrap: wrap;
 }
 
-/* GRAPH BOX */
 .simulate-page .chart-box {
   flex: 1 1 68%;
   background: rgba(35, 35, 55, 0.9);
@@ -257,7 +257,7 @@
   font-weight: 600;
 }
 
-/* BEST / WORST SECTION */
+/* Meilleures / pires périodes */
 .best-worst-section {
   display: flex;
   justify-content: space-between;
@@ -265,7 +265,8 @@
   gap: 2em;
 }
 
-.best-section, .worst-section {
+.best-section,
+.worst-section {
   flex: 1;
   padding: 1em 1.4em;
   border-radius: 12px;
@@ -307,9 +308,9 @@
   color: #fff;
 }
 
-/* Interprétation */
-.simulate-page .chart-interpretation {
-  flex: 1 1 30%;
+/* === INTERPRÉTATION (texte sous les graphes) === */
+.chart-interpretation {
+  margin-top: 16px;
   background: rgba(40, 40, 60, 0.9);
   border-radius: 14px;
   padding: 1.8em;
@@ -320,19 +321,98 @@
   text-align: center;
 }
 
-.simulate-page .chart-interpretation h4 {
+.chart-interpretation h4 {
   color: #bcbaff;
   margin-bottom: 0.8em;
   font-size: 1.1rem;
   font-weight: 600;
 }
 
-.simulate-page .chart-interpretation p {
+.chart-interpretation p {
   color: #ccc;
   text-align: justify;
   font-size: 0.95rem;
   line-height: 1.6;
 }
+
+/* === BLOC GLOBAL CHART (Sharpe + PER) === */
+.chart-block {
+  margin-bottom: 40px;
+}
+
+/* === SPLIT GRAPHE / LÉGENDE POUR SHARPE & PER === */
+.chart-row-split {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+/* Zone du graph (Sharpe & PER) */
+.chart-main {
+  flex: 3;
+  background: rgba(35, 35, 55, 0.9);
+  padding: 12px 16px 8px 16px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Titre des graphes à l’intérieur de chart-main */
+.chart-main h3 {
+  text-align: center;
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Légende à droite (plus petite) */
+.chart-legend-side {
+  flex: 1.2;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  font-size: 0.8rem;
+  color: #f2f2f2;
+
+  justify-content: center;
+  align-self: center;
+  height: auto;
+}
+
+.chart-legend-side h4 {
+  text-align: center;
+  margin-bottom: 4px;       
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+/* Éléments de légende */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+/* Carrés de couleur */
+.legend-orange,
+.legend-green,
+.legend-red,
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.legend-orange { background: #ffb347; }
+.legend-green  { background: #4ade80; }
+.legend-red    { background: #f87171; }
 
 /* === BOUTON STRATÉGIES === */
 .simulate-page .strategies-button-container {
@@ -357,7 +437,6 @@
   background: linear-gradient(135deg, #7c6cff, #00e6b8);
 }
 
-
 /* === RESPONSIVE === */
 @media (max-width: 950px) {
   .simulate-page .main-section {
@@ -374,5 +453,13 @@
 
   .simulate-page .cards-container {
     grid-template-columns: 1fr;
+  }
+
+  .chart-row-split {
+    flex-direction: column;
+  }
+
+  .chart-legend-side {
+    width: 100%;
   }
 }

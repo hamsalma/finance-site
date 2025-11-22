@@ -12,7 +12,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/compare.css";
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
 export default function Compare() {
   const navigate = useNavigate();

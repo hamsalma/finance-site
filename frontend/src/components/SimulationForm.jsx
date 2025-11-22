@@ -21,7 +21,7 @@ import { saveAs } from "file-saver";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/simulationForm.css";
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
 async function captureBase64(id) {
   const element = document.getElementById(id);

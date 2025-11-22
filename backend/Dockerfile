@@ -11,4 +11,5 @@ ENV PORT=5000
 EXPOSE 5000
 
 # gunicorn en prod
-CMD gunicorn run:app --bind 0.0.0.0:$PORT
+CMD gunicorn backend.app:create_app()
+

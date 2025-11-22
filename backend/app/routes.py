@@ -5,6 +5,14 @@ from flask import Blueprint, jsonify, request
 from sklearn.linear_model import LinearRegression
 import scipy.stats as stats
 import traceback
+from flask import request, send_file
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
+import base64
+from reportlab.pdfgen import canvas
 
 bp = Blueprint("routes", __name__)
 
@@ -87,7 +95,11 @@ def simulate_portfolio():
     montant_initial = float(data.get("montant_initial", 0))
     contribution = float(data.get("contribution", 0))
     frequence = data.get("frequence", "mensuelle")
-    duree = int(data.get("duree", 0))
+    raw_duree = data.get("duree", 0)
+    try:
+        duree = int(raw_duree) if raw_duree is not None else 0
+    except (TypeError, ValueError):
+        duree = 0
     actif = (data.get("actif") or "etf").lower()
     ticker = resolve_ticker(actif, data.get("ticker"))
     date_debut = int(data.get("date_debut", 2015))
@@ -539,4 +551,208 @@ def compare_strategies():
         print("❌ ERREUR /compare_strategies :", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    
+# ========== EXPORT PDF & EXCEL ==========
+@bp.route("/export/pdf", methods=["POST"])
+def export_pdf():
+    data = request.get_json() or {}
+
+    if "resultats" not in data:
+        return {"error": "Missing simulation results"}, 400
+
+    resultats = data["resultats"]
+    inputs = data.get("inputs", {})
+    graphs = data.get("graphs", {})
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    def on_page(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#111118"))
+        canvas.rect(0, 0, A4[0], A4[1], fill=1)
+
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle(
+    "title",
+    parent=styles["Heading1"],
+    textColor=colors.HexColor("#b8a4ff"), 
+    fontSize=22,
+    alignment=1
+)
+
+    subtitle = ParagraphStyle(
+        "subtitle",
+        parent=styles["Heading2"],
+        textColor=colors.HexColor("#9f91f7"),  # violet doux
+        fontSize=16,
+        spaceBefore=10
+    )
+
+    normal = ParagraphStyle(
+        "normal",
+        parent=styles["BodyText"],
+        fontSize=11,
+        textColor=colors.white,
+    )
+
+    elements = []
+
+    # ---- TITRE ----
+    elements.append(Paragraph("Rapport de Simulation de Portefeuille", title))
+    elements.append(Spacer(1, 18))
+
+    # ---- PARAMETRES ----
+    elements.append(Paragraph("<b>Paramètres de simulation</b>", subtitle))
+    elements.append(Spacer(1, 8))
+
+    table_data = [
+        ["Montant initial", f"{inputs.get('montant_initial',0)} €"],
+        ["Contribution", f"{inputs.get('contribution',0)} € ({inputs.get('frequence','')})"],
+        ["Actif", f"{inputs.get('actif','')} - {inputs.get('ticker','')}"],
+        ["Période", f"{inputs.get('date_debut','')} → {inputs.get('date_fin','')}"],
+        ["Durée", f"{inputs.get('duree','')} ans"],
+    ]
+
+    table = Table(table_data, colWidths=[150, 300])
+    table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),colors.HexColor("#1c1a24")),
+        ('TEXTCOLOR',(0,0),(-1,-1),colors.white),
+        ('BOX',(0,0),(-1,-1),1,colors.HexColor("#7c6cff")),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor("#7c6cff")),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 18))
+
+    # ---- RATIOS ----
+    elements.append(Paragraph("<b>Ratios financiers</b>", subtitle))
+    elements.append(Spacer(1, 8))
+
+    ratios_table = Table([
+        ["Sharpe", resultats.get("ratio_sharpe")],
+        ["Volatilité", resultats.get("volatilite")],
+        ["CAGR", resultats.get("cagr")],
+        ["Rendement total (%)", resultats.get("rendement_total")],
+    ], colWidths=[150, 300])
+
+    ratios_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(1,0),colors.HexColor("#2b2154")),
+        ('TEXTCOLOR',(0,0),(1,-1),colors.white),
+        ('BOX',(0,0),(-1,-1),1,colors.HexColor("#7c6cff")),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor("#7c6cff")),
+    ]))
+
+    elements.append(ratios_table)
+    elements.append(Spacer(1, 24))
+
+    # ---- Fonction d’ajout de graphe + interprétation ----
+    def add_graph(title_text, graph_key, interpretation=None):
+        if graph_key not in graphs or graphs[graph_key] is None:
+            return
+
+        elements.append(Paragraph(f"<b>{title_text}</b>", subtitle))
+        elements.append(Spacer(1, 8))
+
+        # image
+        img_data = graphs[graph_key].split(",")[1]
+        img_bytes = base64.b64decode(img_data)
+        img = Image(io.BytesIO(img_bytes), width=500, height=260)
+        elements.append(img)
+        elements.append(Spacer(1, 8))
+
+        # interprétation sous le graphe :
+        if interpretation:
+            elements.append(Paragraph(interpretation, normal))
+            elements.append(Spacer(1, 20))
+
+    # ---- Ajout des graphes + interpretations ----
+    add_graph(
+        "Performance cumulée",
+        "performance",
+        interpretation=data.get("interpretations", {}).get("performance")
+    )
+
+    add_graph(
+        "Histogramme des rendements",
+        "histogram",
+        interpretation=data.get("interpretations", {}).get("histogram")
+    )
+
+    add_graph(
+        "Sharpe ratio glissant",
+        "sharpe",
+        interpretation=data.get("interpretations", {}).get("sharpe")
+    )
+
+    add_graph(
+        "Évolution du PER",
+        "per",
+        interpretation=data.get("interpretations", {}).get("per")
+    )
+
+    add_graph(
+        "Comparaison avec ACWI",
+        "compare",
+        interpretation=data.get("interpretations", {}).get("compare")
+    )
+
+    add_graph(
+        "Prédiction des rendements",
+        "predict",
+        interpretation=data.get("interpretations", {}).get("predict")
+    )
+
+    # ---- Génération PDF ----
+    doc.build(elements, onFirstPage=on_page, onLaterPages=on_page)
+
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="rapport_portefeuille.pdf"
+    )
+
+@bp.route("/export/excel", methods=["POST"])
+def export_excel():
+    data = request.get_json() or {}
+
+    if "resultats" not in data:
+        return jsonify({"error": "Missing simulation results"}), 400
+
+    resultats = data["resultats"]
+    inputs = data.get("inputs", {})
+
+    # Création Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        pd.DataFrame([inputs]).to_excel(writer, sheet_name="Paramètres", index=False)
+        pd.DataFrame(resultats.get("historique", [])).to_excel(writer, sheet_name="Historique", index=False)
+        pd.DataFrame(resultats.get("rendements", [])).to_excel(writer, sheet_name="Rendements", index=False)
+        pd.DataFrame([{
+            "Sharpe": resultats.get("ratio_sharpe"),
+            "Volatilité": resultats.get("volatilite"),
+            "CAGR": resultats.get("cagr"),
+            "Rendement total (%)": resultats.get("rendement_total"),
+            "Montant investi": resultats.get("montant_total_investi"),
+            "Valeur finale": resultats.get("portefeuille_final_estime"),
+        }]).to_excel(writer, sheet_name="Ratios", index=False)
+
+        if resultats.get("sharpe_rolling"):
+            pd.DataFrame(resultats["sharpe_rolling"]).to_excel(writer, sheet_name="Sharpe glissant")
+        if resultats.get("per_series"):
+            pd.DataFrame(resultats["per_series"]).to_excel(writer, sheet_name="PER")
+        if resultats.get("comparaison_indice"):
+            pd.DataFrame(resultats["comparaison_indice"]).to_excel(writer, sheet_name="Comparaison indice")
+        if resultats.get("predictions"):
+            pd.DataFrame(resultats["predictions"]).to_excel(writer, sheet_name="Prédictions")
+
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="rapport_portefeuille.xlsx"
+    )
+
 

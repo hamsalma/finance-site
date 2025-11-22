@@ -16,10 +16,92 @@ import {
   Area,
   ComposedChart,
 } from "recharts";
+import html2canvas from "html2canvas";
+import { saveAs } from "file-saver";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../styles/simulationForm.css";
 
 const API_URL = "http://127.0.0.1:5000";
+
+async function captureBase64(id) {
+  const element = document.getElementById(id);
+  if (!element) return null;
+
+  const canvas = await html2canvas(element, {
+    backgroundColor: "#111118",
+    scale: 2,
+  });
+
+  return canvas.toDataURL("image/png");
+}
+
+const downloadFile = async (url, payload, filename) => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || "Erreur lors de l’export.");
+    return;
+  }
+
+  const blob = await res.blob();
+  saveAs(blob, filename);
+};
+
+const exportPDF = async (result) => {
+  if (!result) {
+    alert("Veuillez d'abord faire une simulation.");
+    return;
+  }
+
+  const graphs = {
+    performance: await captureBase64("chart-performance"),
+    histogram: await captureBase64("chart-histogram"),
+    sharpe: await captureBase64("chart-sharpe"),
+    per: await captureBase64("chart-per"),
+  };
+  const interpretations = {
+  performance: interpretPortfolioCurve(
+    result.resultats.historique,
+    result.resultats.cagr,
+    result.resultats.volatilite
+  ),
+  histogram: interpretHistogram(result.resultats.rendements),
+  sharpe: interpretSharpeRolling(result.resultats.sharpe_rolling),
+  per: interpretPERSeries(result.resultats.per_series),
+  };
+
+  const payload = {
+    inputs: result.inputs,
+    resultats: result.resultats,
+    graphs,
+    interpretations
+  };
+
+  await downloadFile(`${API_URL}/export/pdf`, payload, "rapport_portefeuille.pdf");
+};
+
+const exportExcel = async (result) => {
+  if (!result) {
+    alert("Veuillez d'abord faire une simulation.");
+    return;
+  }
+
+  const payload = {
+    inputs: result.inputs,
+    resultats: result.resultats,
+  };
+
+  await downloadFile(
+    `${API_URL}/export/excel`,
+    payload,
+    "rapport_portefeuille.xlsx"
+  );
+};
 
 const UNIVERSE = {
   actions: {
@@ -237,11 +319,10 @@ export default function SimulationForm() {
         setFormData((s) => ({ ...s, ticker: defaultTicker }));
       }
     }
-  }, [formData.actif]); // OK
+  }, [formData.actif]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
@@ -263,7 +344,7 @@ export default function SimulationForm() {
       return;
     }
 
-    const duree = dateFin - dateDebut; // durée en années
+    const duree = dateFin - dateDebut; 
 
     const payload = {
       montant_initial: parseFloat(formData.montant_initial),
@@ -387,7 +468,7 @@ export default function SimulationForm() {
           </label>
 
           <label>
-            Année de fin :
+            Année de fin ( Par defaut : "année courante" ):
             <input
               type="number"
               name="date_fin"
@@ -519,14 +600,14 @@ export default function SimulationForm() {
         )}
       </div>
 
-            {/* SECTION GRAPHIQUES */}
+      {/* SECTION GRAPHIQUES */}
       {result && (
         <div className="charts-section">
           <h2 className="charts-title">Visualisations des performances</h2>
 
           {/* 1) COURBE DE PERFORMANCE CUMULÉE */}
           <div className="chart-row">
-            <div className="chart-box">
+            <div className="chart-box" id="chart-performance">
               <h3>Courbe de performance cumulée</h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={result.resultats.historique}>
@@ -565,7 +646,7 @@ export default function SimulationForm() {
 
           {/* 2) HISTOGRAMME DES RENDEMENTS */}
           <div className="chart-row">
-            <div className="chart-box">
+            <div className="chart-box" id="chart-histogram">
               <h3>Histogramme des rendements périodiques</h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={result.resultats.rendements}>
@@ -663,7 +744,7 @@ export default function SimulationForm() {
           <div className="chart-block">
             <div className="chart-row-split">
               {/* Graphe à gauche */}
-              <div className="chart-main">
+              <div className="chart-main" id="chart-sharpe">
                 <h3>Sharpe ratio glissant</h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={sharpeData}>
@@ -747,7 +828,7 @@ export default function SimulationForm() {
           <div className="chart-block">
             <div className="chart-row-split">
               {/* Graphe à gauche */}
-              <div className="chart-main">
+              <div className="chart-main" id="chart-per">
                 <h3>Évolution du PER</h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={perData}>
@@ -818,6 +899,25 @@ export default function SimulationForm() {
             }
           >
             Comparer les stratégies d’investissement (DCA vs Lump Sum)
+          </button>
+        </div>
+      )}
+      {/* EXPORT */}
+      {result && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "15px",
+            marginTop: "30px",
+          }}
+        >
+          <button className="compare-button" onClick={() => exportPDF(result)}>
+            Exporter PDF
+          </button>
+
+          <button className="predict-button" onClick={() => exportExcel(result)}>
+            Exporter Excel
           </button>
         </div>
       )}
